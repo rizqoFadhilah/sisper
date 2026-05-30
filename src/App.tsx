@@ -31,6 +31,7 @@ import {
   Karyawan,
   AbsensiKaryawan,
   AbsensiPekerja,
+  Pekerja,
   LeadPenjualan,
   FeeMarketing
 } from './types';
@@ -67,6 +68,7 @@ export default function App() {
   const [karyawanList, setKaryawanList] = React.useState<Karyawan[]>([]);
   const [absensiList, setAbsensiList] = React.useState<AbsensiKaryawan[]>([]);
   const [absensiPekerjaList, setAbsensiPekerjaList] = React.useState<AbsensiPekerja[]>([]);
+  const [pekerjaList, setPekerjaList] = React.useState<Pekerja[]>([]);
   const [leadList, setLeadList] = React.useState<LeadPenjualan[]>([]);
   const [feeList, setFeeList] = React.useState<FeeMarketing[]>([]);
 
@@ -153,6 +155,16 @@ export default function App() {
         setLeadList(resLeads.data);
         setFeeList(resFee.data);
 
+        // 3b. Read Pekerja table if exists, else it will gracefully fall back
+        try {
+          const { data: pekerjaRes, error: pekerjaErr } = await supabase.from('pekerja').select('*');
+          if (!pekerjaErr && pekerjaRes && pekerjaRes.length > 0) {
+            setPekerjaList(pekerjaRes);
+          }
+        } catch (pekerjaErr) {
+          console.warn('Gagal membaca tabel pekerja:', pekerjaErr);
+        }
+
         setDbStatus('connected');
         setDbStatusMessage('Terhubung dengan Database Supabase!');
       } catch (err: any) {
@@ -164,6 +176,34 @@ export default function App() {
 
     loadSupabaseData();
   }, []);
+
+  // Synchronize/seed pekerjaList with unique workers from existing data if pekerjaList is empty
+  React.useEffect(() => {
+    if (progresList.length > 0 && pekerjaList.length === 0) {
+      const map = new Map<string, { namaTukang: string; kategoriPekerjaan: any; noHp: string }>();
+      progresList.forEach((p) => {
+        const name = p.namaTukang?.trim();
+        if (!name || name === 'Belum Ditunjuk') return;
+        const key = name.toLowerCase();
+        if (!map.has(key)) {
+          map.set(key, {
+            namaTukang: name,
+            kategoriPekerjaan: p.kategoriPekerjaan,
+            noHp: p.noHp || '-'
+          });
+        }
+      });
+      if (map.size > 0) {
+        const generated: Pekerja[] = Array.from(map.values()).map((v, idx) => ({
+          id: `pekerja-seed-${idx}`,
+          namaTukang: v.namaTukang,
+          noHp: v.noHp,
+          kategoriPekerjaan: v.kategoriPekerjaan
+        }));
+        setPekerjaList(generated);
+      }
+    }
+  }, [progresList, pekerjaList.length]);
 
   const handleUpdateLeadStatus = React.useCallback((id: string, newStatus: LeadPenjualan['leadStatus']) => {
     const todayStr = new Date().toISOString().split('T')[0];
@@ -177,6 +217,22 @@ export default function App() {
       .then(({ error }) => {
         if (error) console.warn('Supabase update failed:', error.message);
       });
+  }, []);
+
+  const handleAddPekerja = React.useCallback((newPekerjaData: Omit<Pekerja, 'id'>) => {
+    const generatedId = `pekerja-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+    const newPekerja: Pekerja = {
+      id: generatedId,
+      ...newPekerjaData
+    };
+
+    setPekerjaList((prev) => [newPekerja, ...prev]);
+    showToast(`Sukses mendaftarkan pekerja ${newPekerja.namaTukang}!`);
+
+    // Insert to Supabase
+    supabase.from('pekerja').insert([newPekerja]).then(({ error }) => {
+      if (error) console.warn('Supabase insert pekerja failed:', error.message);
+    });
   }, []);
 
   const handleUpdateFeeStatus = React.useCallback((id: string, newStatus: FeeMarketing['statusPembayaran']) => {
@@ -203,34 +259,37 @@ export default function App() {
       });
   }, []);
 
-  const handleUpdateProgres = React.useCallback((id: string, newProgress: number) => {
-    let updatedProgres: any = null;
-    setProgresList((prev) =>
-      prev.map((p) => {
-        if (p.id === id) {
-          const persentasiProgres = Math.min(100, Math.max(0, newProgress));
-          const totalNilaiPekerjaan = Math.round(p.nilaiPekerjaan * (persentasiProgres / 100));
-          const result = {
-            ...p,
-            persentasiProgres,
-            totalNilaiPekerjaan,
-          };
-          updatedProgres = result;
-          return result;
-        }
-        return p;
-      })
-    );
+  const handleUpdateProgres = React.useCallback((id: string, newProgress: number, namaTukang?: string, noHp?: string) => {
+    const target = progresList.find((p) => p.id === id);
+    if (!target) return;
+
+    const persentasiProgres = Math.min(100, Math.max(0, newProgress));
+    const totalNilaiPekerjaan = Math.round(target.nilaiPekerjaan * (persentasiProgres / 100));
+    
+    const updatedProgres = {
+      ...target,
+      persentasiProgres,
+      totalNilaiPekerjaan,
+      ...(namaTukang !== undefined ? { namaTukang } : {}),
+      ...(noHp !== undefined ? { noHp } : {}),
+    };
+
+    // Update state
+    setProgresList((prev) => prev.map((p) => (p.id === id ? updatedProgres : p)));
+
     // Background sync to Supabase
-    if (updatedProgres) {
-      supabase.from('progres_pekerjaan')
-        .update({ persentasiProgres: updatedProgres.persentasiProgres, totalNilaiPekerjaan: updatedProgres.totalNilaiPekerjaan })
-        .eq('id', id)
-        .then(({ error }) => {
-          if (error) console.warn('Supabase update failed:', error.message);
-        });
-    }
-  }, []);
+    supabase.from('progres_pekerjaan')
+      .update({ 
+        persentasiProgres: updatedProgres.persentasiProgres, 
+        totalNilaiPekerjaan: updatedProgres.totalNilaiPekerjaan,
+        namaTukang: updatedProgres.namaTukang,
+        noHp: updatedProgres.noHp
+      })
+      .eq('id', id)
+      .then(({ error }) => {
+        if (error) console.warn('Supabase update failed:', error.message);
+      });
+  }, [progresList]);
 
   const handleUpdateKonstruksiStatus = React.useCallback((id: string, newStatus: Konstruksi['statusPembangunan']) => {
     setKonstruksiList((prev) =>
@@ -297,9 +356,18 @@ export default function App() {
 
     switch (modalType) {
       case 'konstruksi': {
-        const selectedProj = projects.find(p => p.id === data.projectId);
+        const { 
+          autoGenerateJobs, 
+          workerStruktur, 
+          workerAtap, 
+          workerPlafon, 
+          workerListrik, 
+          workerPembersihan,
+          ...cleanKonstruksiData 
+        } = data;
+        const selectedProj = projects.find(p => p.id === cleanKonstruksiData.projectId);
         const newKonstruksi: Konstruksi = {
-          ...data,
+          ...cleanKonstruksiData,
           projectName: selectedProj ? selectedProj.name : 'Unknown Project',
         };
         setKonstruksiList(prev => [newKonstruksi, ...prev]);
@@ -309,6 +377,75 @@ export default function App() {
         supabase.from('konstruksi').insert([newKonstruksi]).then(({ error }) => {
           if (error) console.warn('Supabase insert failed:', error.message);
         });
+
+        if (autoGenerateJobs) {
+          const templates: { kategoriPekerjaan: 'struktur' | 'plafon' | 'atap' | 'listrik' | 'pembersihan'; itemPekerjaan: string; nilaiPekerjaan: number; }[] = [
+            { kategoriPekerjaan: 'struktur', itemPekerjaan: 'PEK. PONDASI RUMAH', nilaiPekerjaan: 1000000 },
+            { kategoriPekerjaan: 'struktur', itemPekerjaan: 'PAS. SLOF', nilaiPekerjaan: 700000 },
+            { kategoriPekerjaan: 'struktur', itemPekerjaan: 'TIMBUNAN', nilaiPekerjaan: 300000 },
+            { kategoriPekerjaan: 'struktur', itemPekerjaan: 'PAS. BATA  + KUSENG', nilaiPekerjaan: 4200000 },
+            { kategoriPekerjaan: 'struktur', itemPekerjaan: 'PAS. RING BALOK+DAK KM', nilaiPekerjaan: 1000000 },
+            { kategoriPekerjaan: 'struktur', itemPekerjaan: 'PLASTER LUAR DALAM', nilaiPekerjaan: 2800000 },
+            { kategoriPekerjaan: 'struktur', itemPekerjaan: 'PAS. TEGEL RUMAH', nilaiPekerjaan: 1300000 },
+            { kategoriPekerjaan: 'struktur', itemPekerjaan: 'PEK. KAMAR MANDI + SEPTICK TANK', nilaiPekerjaan: 1000000 },
+            { kategoriPekerjaan: 'struktur', itemPekerjaan: 'ORNAMEN DEPAN + PAGAR DEPAN&BELAKANG', nilaiPekerjaan: 800000 },
+            { kategoriPekerjaan: 'struktur', itemPekerjaan: 'CARPORT+DEKER+PELUR BELAKANG', nilaiPekerjaan: 600000 },
+            { kategoriPekerjaan: 'struktur', itemPekerjaan: 'SALURAN DEPAN', nilaiPekerjaan: 600000 },
+            { kategoriPekerjaan: 'struktur', itemPekerjaan: 'ACI + PLAMIR', nilaiPekerjaan: 800000 },
+            { kategoriPekerjaan: 'struktur', itemPekerjaan: 'CAT DINDING & KUSENG', nilaiPekerjaan: 1200000 },
+            { kategoriPekerjaan: 'listrik', itemPekerjaan: 'PEK. LISTRIK', nilaiPekerjaan: 500000 },
+            { kategoriPekerjaan: 'atap', itemPekerjaan: 'RANGKA+ATAP+LIST', nilaiPekerjaan: 1500000 },
+            { kategoriPekerjaan: 'plafon', itemPekerjaan: 'PEK PLAFON + CAT', nilaiPekerjaan: 1500000 },
+            { kategoriPekerjaan: 'pembersihan', itemPekerjaan: 'PEMBERSIHAN LUAR + DALAM', nilaiPekerjaan: 200000 },
+            { kategoriPekerjaan: 'struktur', itemPekerjaan: 'DRAINASE BELAKANG', nilaiPekerjaan: 300000 },
+          ];
+
+          // Helper to map and retrieve the assigned worker's phone number
+          const getAssignedWorker = (category: 'struktur' | 'plafon' | 'atap' | 'listrik' | 'pembersihan') => {
+            let assignedName = '';
+            if (category === 'struktur') assignedName = workerStruktur || '';
+            else if (category === 'atap') assignedName = workerAtap || '';
+            else if (category === 'plafon') assignedName = workerPlafon || '';
+            else if (category === 'listrik') assignedName = workerListrik || '';
+            else if (category === 'pembersihan') assignedName = workerPembersihan || '';
+
+            assignedName = assignedName.trim();
+            if (!assignedName) {
+              return { name: 'Belum Ditunjuk', noHp: '-' };
+            }
+
+            const found = progresList.find(p => p.namaTukang?.toLowerCase() === assignedName.toLowerCase());
+            return {
+              name: assignedName,
+              noHp: found ? found.noHp || '-' : '-',
+            };
+          };
+
+          const seededProgresList: ProgresPekerjaan[] = templates.map((t, idx) => {
+            const seedId = `prog-${generatedId}-${idx}`;
+            const worker = getAssignedWorker(t.kategoriPekerjaan);
+            return {
+              id: seedId,
+              blokRumah: newKonstruksi.id,
+              namaTukang: worker.name,
+              noHp: worker.noHp,
+              kategoriPekerjaan: t.kategoriPekerjaan,
+              itemPekerjaan: t.itemPekerjaan,
+              persentasiProgres: 0,
+              nilaiPekerjaan: t.nilaiPekerjaan,
+              totalNilaiPekerjaan: 0,
+              catatan: 'Dibuat otomatis dari template standard.',
+            };
+          });
+
+          // Update React State
+          setProgresList(prev => [...seededProgresList, ...prev]);
+
+          // Insert seeded items to Supabase
+          supabase.from('progres_pekerjaan').insert(seededProgresList).then(({ error }) => {
+            if (error) console.warn('Supabase insert seeded progres failed:', error.message);
+          });
+        }
         break;
       }
       case 'progres': {
@@ -326,7 +463,7 @@ export default function App() {
           catatan: data.catatan || 'Di-input via System.',
         };
         setProgresList(prev => [newProgres, ...prev]);
-        showToast(`Sukses mencatat progres kerja ${newProgres.namaTukang} di Blok ${newProgres.blokRumah}.`);
+        showToast(`Sukses mencatat progres pekerjaan ${newProgres.namaTukang} di Blok ${newProgres.blokRumah}.`);
 
         // Supabase Insert Table
         supabase.from('progres_pekerjaan').insert([newProgres]).then(({ error }) => {
@@ -445,7 +582,7 @@ export default function App() {
           namaBlok: data.namaBlok,
         };
         setPembayaranList(prev => [newPayment, ...prev]);
-        showToast(`Sukses merilis dana pembayaran Rp${data.nilaiPembayaran.toLocaleString()} ke ${data.namaTukang}.`);
+        showToast(`Sukses merilis dana pembayaran Rp${data.nilaiPembayaran.toLocaleString()} ke pekerja ${data.namaTukang}.`);
 
         // Supabase Insert Table
         supabase.from('rincian_pembayaran').insert([newPayment]).then(({ error }) => {
@@ -720,6 +857,7 @@ export default function App() {
                 inventoryList={inventoryList}
                 progresList={progresList}
                 absensiList={absensiList}
+                absensiPekerjaList={absensiPekerjaList}
                 selectedProjectId={selectedProjectId}
                 setSelectedProjectId={setSelectedProjectId}
               />
@@ -774,9 +912,11 @@ export default function App() {
                 absensiList={absensiList}
                 absensiPekerjaList={absensiPekerjaList}
                 progresList={progresList}
+                pekerjaList={pekerjaList}
                 onAddKaryawan={() => openModal('karyawan')}
                 onAddAbsensi={() => openModal('absensi')}
                 onAddAbsensiPekerja={() => openModal('absensi_pekerja')}
+                onAddPekerja={handleAddPekerja}
               />
             )}
           </div>
@@ -881,6 +1021,7 @@ export default function App() {
         konstruksiList={konstruksiList}
         inventoryList={inventoryList}
         progresList={progresList}
+        pekerjaList={pekerjaList}
         onSave={handleSaveModal}
       />
 

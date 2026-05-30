@@ -10,7 +10,7 @@ import {
   Layers, 
   AlertTriangle 
 } from 'lucide-react';
-import { Project, Konstruksi, Inventory, ProgresPekerjaan, AbsensiKaryawan } from '../types';
+import { Project, Konstruksi, Inventory, ProgresPekerjaan, AbsensiKaryawan, AbsensiPekerja } from '../types';
 
 interface DashboardViewProps {
   projects: Project[];
@@ -18,6 +18,7 @@ interface DashboardViewProps {
   inventoryList: Inventory[];
   progresList: ProgresPekerjaan[];
   absensiList: AbsensiKaryawan[];
+  absensiPekerjaList: AbsensiPekerja[];
   selectedProjectId: string;
   setSelectedProjectId: (id: string) => void;
 }
@@ -90,6 +91,7 @@ export default function DashboardView({
   inventoryList,
   progresList,
   absensiList,
+  absensiPekerjaList,
   selectedProjectId,
   setSelectedProjectId,
 }: DashboardViewProps) {
@@ -101,25 +103,67 @@ export default function DashboardView({
 
   const totalUnits = filteredKonstruksi.length;
 
-  // Calculate percentages
-  // A. Employee attendance percentage (Kehadiran Karyawan)
-  // Let's filter absensi for modern date (latest dates)
-  const employeeAttendancePct = React.useMemo(() => {
-    if (absensiList.length === 0) return 0;
-    const totalDays = absensiList.length;
-    const totalHadir = absensiList.filter(a => a.statusKehadiran === 'Hadir').length;
-    return Math.round((totalHadir / totalDays) * 100);
+  // Calculate percentages based on today's attendance or latest available date
+  
+  // A. Employee Attendance Date, Count & Percentage
+  const karyawanDateInfo = React.useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const hasToday = absensiList.some(a => a.tanggal === todayStr);
+    if (hasToday) {
+      return { date: todayStr, label: 'Hari Ini' };
+    }
+    // Fallback to latest date in table
+    if (absensiList.length > 0) {
+      const dates = absensiList.map(a => a.tanggal).sort();
+      const latest = dates[dates.length - 1];
+      return { date: latest, label: `${latest}` };
+    }
+    return { date: todayStr, label: 'Hari Ini' };
   }, [absensiList]);
 
-  // B. Worker attendance (Kehadiran pekerja/tukang)
-  // Let's deduce an interactive attendance percentage
+  const employeeAttendancePct = React.useMemo(() => {
+    const targetAbs = absensiList.filter(a => a.tanggal === karyawanDateInfo.date);
+    if (targetAbs.length === 0) return 0;
+    const total = targetAbs.length;
+    const hadir = targetAbs.filter(a => a.statusKehadiran === 'Hadir').length;
+    return Math.round((hadir / total) * 100);
+  }, [absensiList, karyawanDateInfo]);
+
+  const employeeAttendanceCount = React.useMemo(() => {
+    const targetAbs = absensiList.filter(a => a.tanggal === karyawanDateInfo.date);
+    const hadir = targetAbs.filter(a => a.statusKehadiran === 'Hadir').length;
+    return { hadir, total: targetAbs.length };
+  }, [absensiList, karyawanDateInfo]);
+
+  // B. Worker ("Tukang") Attendance Date, Count & Percentage
+  const pekerjaDateInfo = React.useMemo(() => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const hasToday = absensiPekerjaList.some(a => a.tanggal === todayStr);
+    if (hasToday) {
+      return { date: todayStr, label: 'Hari Ini' };
+    }
+    // Fallback to latest date in table
+    if (absensiPekerjaList.length > 0) {
+      const dates = absensiPekerjaList.map(a => a.tanggal).sort();
+      const latest = dates[dates.length - 1];
+      return { date: latest, label: `${latest}` };
+    }
+    return { date: todayStr, label: 'Hari Ini' };
+  }, [absensiPekerjaList]);
+
   const workerAttendancePct = React.useMemo(() => {
-    // Generate an organic attendance rate based on number of active blocks
-    if (filteredKonstruksi.length === 0) return 85; 
-    const activeBlocksCount = filteredKonstruksi.filter(k => k.statusPembangunan === 'onProgres').length;
-    const base = 85 + (activeBlocksCount % 4) * 3;
-    return Math.min(base, 100);
-  }, [filteredKonstruksi]);
+    const targetAbs = absensiPekerjaList.filter(a => a.tanggal === pekerjaDateInfo.date);
+    if (targetAbs.length === 0) return 0;
+    const total = targetAbs.length;
+    const hadir = targetAbs.filter(a => a.statusKehadiran === 'Hadir').length;
+    return Math.round((hadir / total) * 100);
+  }, [absensiPekerjaList, pekerjaDateInfo]);
+
+  const workerAttendanceCount = React.useMemo(() => {
+    const targetAbs = absensiPekerjaList.filter(a => a.tanggal === pekerjaDateInfo.date);
+    const hadir = targetAbs.filter(a => a.statusKehadiran === 'Hadir').length;
+    return { hadir, total: targetAbs.length };
+  }, [absensiPekerjaList, pekerjaDateInfo]);
 
   // C. Total Terbangun percentage
   const totalTerbangunPct = React.useMemo(() => {
@@ -203,10 +247,7 @@ export default function DashboardView({
     <div className="space-y-6">
       {/* Filters and Welcoming Info */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl bg-white/50 backdrop-blur-md border border-white/40">
-        <div>
-          <h2 className="text-xl font-display font-semibold text-slate-800">Overview Panel SISPER</h2>
-          <p className="text-sm text-slate-500">Statistik real-time pembangunan & pemasaran perumahan</p>
-        </div>
+       
         
         {/* Project Selector - Glassmorphic */}
         <div className="flex items-center gap-2">
@@ -334,17 +375,17 @@ export default function DashboardView({
             <DonutChartWidget 
               value={employeeAttendancePct}
               title="Kehadiran Karyawan"
-              subtitle={`Total ${absensiList.length} Roster Absensi`}
+              subtitle={`${employeeAttendanceCount.hadir}/${employeeAttendanceCount.total} Hadir (${karyawanDateInfo.label})`}
               colorClass="text-indigo-500"
               strokeColor="#6366f1"
               icon={<Users size={14} className="text-indigo-500" />}
             />
 
-            {/* Donut Chart 4: Kehadiran Tukang */}
+            {/* Donut Chart 4: Kehadiran Pekerja */}
             <DonutChartWidget 
               value={workerAttendancePct}
-              title="Kehadiran Tukang"
-              subtitle="Roster Lapangan Lunas"
+              title="Kehadiran Pekerja"
+              subtitle={`${workerAttendanceCount.hadir}/${workerAttendanceCount.total} Hadir (${pekerjaDateInfo.label})`}
               colorClass="text-amber-500"
               strokeColor="#f59e0b"
               icon={<Activity size={14} className="text-amber-500" />}

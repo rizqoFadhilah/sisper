@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Save, AlertCircle } from 'lucide-react';
-import { Project, Gudang, Karyawan, Konstruksi, Inventory, ProgresPekerjaan } from '../types';
+import { Project, Gudang, Karyawan, Konstruksi, Inventory, ProgresPekerjaan, Pekerja } from '../types';
 
 interface AddRecordModalProps {
   isOpen: boolean;
@@ -12,6 +12,7 @@ interface AddRecordModalProps {
   konstruksiList: Konstruksi[];
   inventoryList: Inventory[];
   progresList?: ProgresPekerjaan[];
+  pekerjaList?: Pekerja[];
   onSave: (data: any) => void;
 }
 
@@ -25,6 +26,7 @@ export default function AddRecordModal({
   konstruksiList,
   inventoryList,
   progresList = [],
+  pekerjaList = [],
   onSave,
 }: AddRecordModalProps) {
   if (!isOpen || !type) return null;
@@ -32,6 +34,41 @@ export default function AddRecordModal({
   // Generic state object to capture any form variables dynamically
   const [formData, setFormData] = React.useState<any>({});
   const [errorMsg, setErrorMsg] = React.useState('');
+
+  // Extract unique workers from pekerjaList, with fallback to progresList
+  const uniqueWorkers = React.useMemo(() => {
+    const map = new Map<string, { namaTukang: string; noHp: string }>();
+    if (pekerjaList && pekerjaList.length > 0) {
+      pekerjaList.forEach((p) => {
+        const name = p.namaTukang?.trim();
+        if (!name || name === 'Belum Ditunjuk') return;
+        const key = name.toLowerCase();
+        if (!map.has(key)) {
+          map.set(key, { namaTukang: name, noHp: p.noHp || '' });
+        } else {
+          const existing = map.get(key)!;
+          if (p.noHp && p.noHp !== '-' && (!existing.noHp || existing.noHp === '-')) {
+            existing.noHp = p.noHp;
+          }
+        }
+      });
+    } else {
+      progresList.forEach((p) => {
+        const name = p.namaTukang?.trim();
+        if (!name || name === 'Belum Ditunjuk') return;
+        const key = name.toLowerCase();
+        if (!map.has(key)) {
+          map.set(key, { namaTukang: name, noHp: p.noHp || '' });
+        } else {
+          const existing = map.get(key)!;
+          if (p.noHp && p.noHp !== '-' && (!existing.noHp || existing.noHp === '-')) {
+            existing.noHp = p.noHp;
+          }
+        }
+      });
+    }
+    return Array.from(map.values()).sort((a, b) => a.namaTukang.localeCompare(b.namaTukang));
+  }, [pekerjaList, progresList]);
 
   // Initializing default form fields based on type
   React.useEffect(() => {
@@ -42,16 +79,22 @@ export default function AddRecordModal({
         id: '',
         projectId: projects[0]?.id || '',
         projectName: projects[0]?.name || '',
-        type: 'Type 45',
-        luasTanah: 90,
-        luasBangunan: 45,
+        type: 'Type 36',
+        luasTanah: 91,
+        luasBangunan: 36,
         statusPembangunan: 'onProgres',
         statusPenjualan: 'tersedia',
         tanggalMulaiBangun: today,
+        autoGenerateJobs: true,
+        workerStruktur: '',
+        workerAtap: '',
+        workerPlafon: '',
+        workerListrik: '',
+        workerPembersihan: '',
       });
     } else if (type === 'progres') {
       setFormData({
-        blokRumah: konstruksiList[0]?.id || 'A-01',
+        blokRumah: konstruksiList[0]?.id || 'A01',
         namaTukang: '',
         noHp: '',
         kategoriPekerjaan: 'struktur',
@@ -92,13 +135,18 @@ export default function AddRecordModal({
         catatan: 'Pekerjaan renovasi lantai',
       });
     } else if (type === 'pembayaran') {
-      // Find list of active contractor names from progress if available
+      const defaultWorker = (pekerjaList && pekerjaList.length > 0)
+        ? pekerjaList[0]
+        : (uniqueWorkers && uniqueWorkers.length > 0)
+        ? { namaTukang: uniqueWorkers[0].namaTukang, kategoriPekerjaan: 'struktur' }
+        : { namaTukang: 'Pak Joko Budiman', kategoriPekerjaan: 'struktur' };
+
       setFormData({
-        namaTukang: 'Pak Joko Budiman',
-        kategoriPekerjaan: 'struktur',
-        nilaiPembayaran: 1500000,
+        namaTukang: defaultWorker.namaTukang,
+        kategoriPekerjaan: (defaultWorker as any).kategoriPekerjaan || 'struktur',
+        nilaiPembayaran: 0,
         tanggalPembayaran: today,
-        namaProjek: projects[0]?.name || 'Permata Hijau Residence',
+        namaProjek: projects[0]?.name || '',
         namaBlok: konstruksiList[0]?.id || 'A-01',
       });
     } else if (type === 'fee') {
@@ -108,7 +156,7 @@ export default function AddRecordModal({
         statusPembayaran: 'Belum Bayar',
         tanggalPembayaran: '-',
         noWhatsapp: '',
-        namaProjek: projects[0]?.name || 'Permata Hijau Residence',
+        namaProjek: projects[0]?.name || '',
         namaBlok: konstruksiList[0]?.id || 'A-01',
       });
     } else if (type === 'karyawan') {
@@ -145,7 +193,7 @@ export default function AddRecordModal({
       });
     }
     setErrorMsg('');
-  }, [type, projects, gudangList, karyawanList, konstruksiList, inventoryList, progresList]);
+  }, [type, projects, gudangList, karyawanList, konstruksiList, inventoryList, progresList, pekerjaList]);
 
   const handleChange = (key: string, value: any) => {
     let finalValue = value;
@@ -163,6 +211,19 @@ export default function AddRecordModal({
         projectName: selectedProj ? selectedProj.name : '',
       }));
       return;
+    }
+
+    // Auto update category for selected worker in payment form
+    if (key === 'namaTukang' && type === 'pembayaran') {
+      const selectedWorker = (pekerjaList || []).find(p => p.namaTukang === value);
+      if (selectedWorker) {
+        setFormData((prev: any) => ({
+          ...prev,
+          namaTukang: value,
+          kategoriPekerjaan: selectedWorker.kategoriPekerjaan,
+        }));
+        return;
+      }
     }
 
     setFormData((prev: any) => ({
@@ -340,6 +401,102 @@ export default function AddRecordModal({
                   className="w-full text-sm rounded-xl px-3 py-2 bg-white border border-slate-200"
                 />
               </div>
+
+              <div className="p-3.5 bg-indigo-50/70 border border-indigo-100/75 rounded-2xl flex items-start gap-3 mt-2 select-none">
+                <input
+                  type="checkbox"
+                  id="autoGenerateJobs"
+                  checked={formData.autoGenerateJobs === true}
+                  onChange={(e) => handleChange('autoGenerateJobs', e.target.checked)}
+                  className="mt-1 w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                />
+                <label htmlFor="autoGenerateJobs" className="cursor-pointer">
+                  <span className="text-xs font-bold text-slate-800 block">Buat 18 Item Pekerjaan Otomatis</span>
+                  <span className="text-[10px] text-slate-500 leading-snug block mt-0.5">
+                    Sistem akan otomatis membuat 18 item rencana pekerjaan standard (Struktur, Atap, Listrik, dll) dengan nominal biaya standard sehingga Anda hanya tinggal mengedit progres dan menunjuk pekerja saja nantinya.
+                  </span>
+                </label>
+              </div>
+
+              {formData.autoGenerateJobs === true && (
+                <div className="p-4 bg-slate-50/80 border border-slate-200/60 rounded-2xl space-y-3 mt-2 animate-fade-in">
+                  <span className="text-xs font-bold text-slate-700 block border-b border-slate-200/60 pb-1.5 mb-2">
+                    Tunjuk Pekerja per Bidang (Opsional)
+                  </span>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1">Pekerja Struktur</label>
+                      <select
+                        value={formData.workerStruktur || ''}
+                        onChange={(e) => handleChange('workerStruktur', e.target.value)}
+                        className="w-full text-xs rounded-xl px-2.5 py-2 bg-white border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                      >
+                        <option value="">-- Belum Ditunjuk --</option>
+                        {uniqueWorkers.map((w) => (
+                          <option key={w.namaTukang} value={w.namaTukang}>{w.namaTukang}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1">Pekerja Atap</label>
+                      <select
+                        value={formData.workerAtap || ''}
+                        onChange={(e) => handleChange('workerAtap', e.target.value)}
+                        className="w-full text-xs rounded-xl px-2.5 py-2 bg-white border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                      >
+                        <option value="">-- Belum Ditunjuk --</option>
+                        {uniqueWorkers.map((w) => (
+                          <option key={w.namaTukang} value={w.namaTukang}>{w.namaTukang}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1">Pekerja Plafon</label>
+                      <select
+                        value={formData.workerPlafon || ''}
+                        onChange={(e) => handleChange('workerPlafon', e.target.value)}
+                        className="w-full text-xs rounded-xl px-2.5 py-2 bg-white border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                      >
+                        <option value="">-- Belum Ditunjuk --</option>
+                        {uniqueWorkers.map((w) => (
+                          <option key={w.namaTukang} value={w.namaTukang}>{w.namaTukang}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1">Pekerja Listrik</label>
+                      <select
+                        value={formData.workerListrik || ''}
+                        onChange={(e) => handleChange('workerListrik', e.target.value)}
+                        className="w-full text-xs rounded-xl px-2.5 py-2 bg-white border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                      >
+                        <option value="">-- Belum Ditunjuk --</option>
+                        {uniqueWorkers.map((w) => (
+                          <option key={w.namaTukang} value={w.namaTukang}>{w.namaTukang}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="col-span-2">
+                      <label className="text-[10px] font-bold text-slate-500 block mb-1">Pekerja Pembersihan</label>
+                      <select
+                        value={formData.workerPembersihan || ''}
+                        onChange={(e) => handleChange('workerPembersihan', e.target.value)}
+                        className="w-full text-xs rounded-xl px-2.5 py-2 bg-white border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                      >
+                        <option value="">-- Belum Ditunjuk --</option>
+                        {uniqueWorkers.map((w) => (
+                          <option key={w.namaTukang} value={w.namaTukang}>{w.namaTukang}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -366,10 +523,11 @@ export default function AddRecordModal({
                     onChange={(e) => handleChange('kategoriPekerjaan', e.target.value)}
                     className="w-full text-sm rounded-xl px-3 py-2 bg-white border border-slate-200"
                   >
-                    <option value="struktur">Struktur Pondasi</option>
-                    <option value="plafon">Plafon Gipsum</option>
-                    <option value="atap">Atap & Baja Ringan</option>
-                    <option value="listrik">Instalasi Listrik & Saklar</option>
+                    <option value="struktur">Struktur</option>
+                    <option value="plafon">Plafon</option>
+                    <option value="atap">Atap</option>
+                    <option value="listrik">Listrik</option>
+                    <option value="pembersihan">Pembersihan</option>
                   </select>
                 </div>
               </div>
@@ -419,6 +577,9 @@ export default function AddRecordModal({
                     onChange={(e) => handleChange('nilaiPekerjaan', e.target.value)}
                     className="w-full text-sm rounded-xl px-3 py-2 bg-white border border-slate-200"
                   />
+                  <div className="mt-1.5 text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200 inline-flex items-center gap-1.5 shadow-sm">
+                    <span>💵</span> Terformat: Rp {Number(formData.nilaiPekerjaan || 0).toLocaleString('id-ID')}
+                  </div>
                 </div>
               </div>
 
@@ -689,26 +850,40 @@ export default function AddRecordModal({
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-slate-600 block mb-1">Nama Tukang</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Contoh: Pak Joko Budiman"
+                  <select
                     value={formData.namaTukang || ''}
                     onChange={(e) => handleChange('namaTukang', e.target.value)}
-                    className="w-full text-sm rounded-xl px-3 py-2 bg-white border border-slate-200 focus:ring-indigo-400"
-                  />
+                    className="w-full text-sm rounded-xl px-3 py-2 bg-white border border-slate-200 focus:ring-indigo-400 font-semibold text-slate-700"
+                  >
+                    {pekerjaList && pekerjaList.length > 0 ? (
+                      pekerjaList.map((p) => (
+                        <option key={p.id} value={p.namaTukang}>
+                          {p.namaTukang}
+                        </option>
+                      ))
+                    ) : uniqueWorkers && uniqueWorkers.length > 0 ? (
+                      uniqueWorkers.map((w, idx) => (
+                        <option key={idx} value={w.namaTukang}>
+                          {w.namaTukang}
+                        </option>
+                      ))
+                    ) : (
+                      <option value="Pak Joko Budiman">Pak Joko Budiman</option>
+                    )}
+                  </select>
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-600 block mb-1">Kategori Pekerjaan</label>
                   <select
                     value={formData.kategoriPekerjaan || 'struktur'}
                     onChange={(e) => handleChange('kategoriPekerjaan', e.target.value)}
-                    className="w-full text-sm rounded-xl px-3 py-2 bg-white border border-slate-200"
+                    className="w-full text-sm rounded-xl px-3 py-2 bg-white border border-slate-200 capitalize font-semibold text-slate-700"
                   >
-                    <option value="struktur">struktur</option>
-                    <option value="atap">atap</option>
-                    <option value="plafon">plafon</option>
-                    <option value="listrik">listrik</option>
+                    <option value="struktur">Struktur</option>
+                    <option value="plafon">Plafon</option>
+                    <option value="atap">Atap</option>
+                    <option value="listrik">Listrik</option>
+                    <option value="pembersihan">Pembersihan</option>
                   </select>
                 </div>
               </div>
@@ -749,6 +924,9 @@ export default function AddRecordModal({
                   onChange={(e) => handleChange('nilaiPembayaran', e.target.value)}
                   className="w-full text-sm rounded-xl px-3 py-2 bg-white border border-slate-200"
                 />
+                <div className="mt-1.5 text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200 inline-flex items-center gap-1.5 shadow-sm animate-fade-in">
+                  <span>💵</span> Terformat: Rp {Number(formData.nilaiPembayaran || 0).toLocaleString('id-ID')}
+                </div>
               </div>
 
               <div>
@@ -825,6 +1003,9 @@ export default function AddRecordModal({
                     onChange={(e) => handleChange('komisi', e.target.value)}
                     className="w-full text-sm rounded-xl px-3 py-2 bg-white border border-slate-200"
                   />
+                  <div className="mt-1.5 text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200 inline-flex items-center gap-1.5 shadow-sm">
+                    <span>💵</span> Terformat: Rp {Number(formData.komisi || 0).toLocaleString('id-ID')}
+                  </div>
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-600 block mb-1">Status Pembayaran</label>
@@ -886,6 +1067,9 @@ export default function AddRecordModal({
                     onChange={(e) => handleChange('gajiHarian', e.target.value)}
                     className="w-full text-sm rounded-xl px-3 py-2 bg-white border border-slate-200"
                   />
+                  <div className="mt-1.5 text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200 inline-flex items-center gap-1.5 shadow-sm">
+                    <span>💵</span> Terformat: Rp {Number(formData.gajiHarian || 4000000).toLocaleString('id-ID')}
+                  </div>
                 </div>
               </div>
 

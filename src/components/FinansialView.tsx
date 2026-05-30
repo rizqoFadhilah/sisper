@@ -120,7 +120,7 @@ export default function FinansialView({
             }`}
           >
             <Activity size={15} className="text-indigo-500" />
-            Opname Tukang
+            Opname Pekerja
           </button>
           <button
             onClick={() => { setSubTab('rincian'); setSearchQuery(''); }}
@@ -129,7 +129,7 @@ export default function FinansialView({
             }`}
           >
             <Receipt size={15} className="text-emerald-500" />
-            Rincian Pembayaran Tukang
+            Rincian Pembayaran Pekerja
           </button>
         </div>
 
@@ -141,7 +141,7 @@ export default function FinansialView({
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-500 to-indigo-600 hover:from-emerald-600 hover:to-indigo-700 text-white text-sm font-bold rounded-xl shadow-md cursor-pointer"
             >
               <CreditCard size={15} />
-              Bayar Gaji Tukang
+              Bayar Gaji Pekerja
             </button>
           )}
           {subTab === 'rincian' && (
@@ -174,7 +174,7 @@ export default function FinansialView({
           <table className="w-full text-left text-sm border-collapse">
             <thead>
               <tr className="bg-slate-50/70 border-b border-slate-100 text-slate-500 text-[11px] uppercase tracking-wider font-display font-medium">
-                <th className="p-4">Tukang (Pekerja)</th>
+                <th className="p-4">Pekerja</th>
                 <th className="p-4">Blok & Projek</th>
                 <th className="p-4 text-right">Nilai Total Progres</th>
                 <th className="p-4 text-right">Nilai & Progres Terbayar</th>
@@ -237,7 +237,7 @@ export default function FinansialView({
             <thead>
               <tr className="bg-slate-50/70 border-b border-slate-100 text-slate-500 text-[11px] uppercase tracking-wider font-display font-medium">
                 <th className="p-4">Tanggal Bayar</th>
-                <th className="p-4">Tukang (Pekerja) & Kategori</th>
+                <th className="p-4">Pekerja & Kategori</th>
                 <th className="p-4">Blok & Projek</th>
                 <th className="p-4 text-right">Nilai Pembayaran</th>
               </tr>

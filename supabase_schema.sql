@@ -17,6 +17,7 @@ DROP TABLE IF EXISTS "inventory" CASCADE;
 DROP TABLE IF EXISTS "suppliers" CASCADE;
 DROP TABLE IF EXISTS "gudang" CASCADE;
 DROP TABLE IF EXISTS "projects" CASCADE;
+DROP TABLE IF EXISTS "pekerja" CASCADE;
 
 -- ===========================================================================
 -- 2. CREATE TABLES WITH EXACT TYPE MAPPINGS
@@ -133,6 +134,14 @@ CREATE TABLE "absensi_pekerja" (
   "keterangan" TEXT
 );
 
+-- Pekerja Table
+CREATE TABLE "pekerja" (
+  "id" TEXT PRIMARY KEY,
+  "namaTukang" TEXT NOT NULL,
+  "noHp" TEXT NOT NULL,
+  "kategoriPekerjaan" TEXT NOT NULL
+);
+
 -- Leads Penjualan Table
 CREATE TABLE "leads_penjualan" (
   "id" TEXT PRIMARY KEY,
@@ -174,6 +183,7 @@ ALTER TABLE "absensi_karyawan" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "absensi_pekerja" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "leads_penjualan" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "fee_marketing" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "pekerja" ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow public select all" ON "projects" FOR SELECT USING (true);
 CREATE POLICY "Allow public insert all" ON "projects" FOR INSERT WITH CHECK (true);
@@ -226,6 +236,10 @@ CREATE POLICY "Allow public update all" ON "leads_penjualan" FOR UPDATE USING (t
 CREATE POLICY "Allow public select all" ON "fee_marketing" FOR SELECT USING (true);
 CREATE POLICY "Allow public insert all" ON "fee_marketing" FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update all" ON "fee_marketing" FOR UPDATE USING (true);
+
+CREATE POLICY "Allow public select all" ON "pekerja" FOR SELECT USING (true);
+CREATE POLICY "Allow public insert all" ON "pekerja" FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update all" ON "pekerja" FOR UPDATE USING (true);
 
 -- ===========================================================================
 -- 4. INSERT DATA SEEDING (Inisialisasi Data Demo)
@@ -340,3 +354,11 @@ INSERT INTO "fee_marketing" ("id", "namaMarketing", "komisi", "statusPembayaran"
 ('fee-02', 'Sarah Amalia', 8000000, 'Belum Bayar', '-', '085711223344', 'Griya Harmony Cluster', 'B-01'),
 ('fee-03', 'Andi Wijaya', 5000000, 'Belum Bayar', '-', '081399887766', 'Grand Nirwana Regency', 'C-02'),
 ('fee-04', 'Rian Firdaus', 15000000, 'Lunas', '2026-05-20', '081223344556', 'Permata Hijau Residence', 'A-02');
+
+-- Pekerja
+INSERT INTO "pekerja" ("id", "namaTukang", "noHp", "kategoriPekerjaan") VALUES
+('pekerja-01', 'Pak Joko Budiman', '081211112222', 'struktur'),
+('pekerja-02', 'Pak Slamet Riyadi', '081233334444', 'atap'),
+('pekerja-03', 'Pak Ahmad K', '081255556666', 'plafon'),
+('pekerja-04', 'Pak Sugeng Widodo', '081277778888', 'listrik'),
+('pekerja-05', 'Pak Supri', '081299990000', 'pembersihan');

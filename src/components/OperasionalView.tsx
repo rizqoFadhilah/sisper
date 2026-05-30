@@ -13,16 +13,18 @@ import {
   Wrench,
   Smartphone
 } from 'lucide-react';
-import { Karyawan, AbsensiKaryawan, ProgresPekerjaan, AbsensiPekerja } from '../types';
+import { Karyawan, AbsensiKaryawan, ProgresPekerjaan, AbsensiPekerja, Pekerja } from '../types';
 
 interface OperasionalViewProps {
   karyawanList: Karyawan[];
   absensiList: AbsensiKaryawan[];
   absensiPekerjaList: AbsensiPekerja[];
   progresList: ProgresPekerjaan[];
+  pekerjaList: Pekerja[];
   onAddKaryawan: () => void;
   onAddAbsensi: () => void;
   onAddAbsensiPekerja: () => void;
+  onAddPekerja?: (pekerja: Omit<Pekerja, 'id'>) => void;
 }
 
 export default function OperasionalView({
@@ -30,9 +32,11 @@ export default function OperasionalView({
   absensiList,
   absensiPekerjaList,
   progresList,
+  pekerjaList = [],
   onAddKaryawan,
   onAddAbsensi,
-  onAddAbsensiPekerja
+  onAddAbsensiPekerja,
+  onAddPekerja
 }: OperasionalViewProps) {
   const [subTab, setSubTab] = React.useState<'karyawan' | 'absensi' | 'absensi_pekerja' | 'pekerja'>('absensi');
   const [searchQuery, setSearchQuery] = React.useState('');
@@ -171,46 +175,41 @@ export default function OperasionalView({
     });
   }, [absensiPekerjaList, searchQuery]);
 
-  // Derive unique workers from progresList
-  const uniquePekerja = React.useMemo(() => {
-    const map = new Map<string, { namaTukang: string; kategoriPekerjaan: Set<string>; noHp: string }>();
-    progresList.forEach(p => {
-      const tukangKey = p.namaTukang.trim().toLowerCase();
-      if (!map.has(tukangKey)) {
-        map.set(tukangKey, {
-          namaTukang: p.namaTukang.trim(),
-          kategoriPekerjaan: new Set([p.kategoriPekerjaan]),
-          noHp: p.noHp || ''
-        });
-      } else {
-        const item = map.get(tukangKey)!;
-        item.kategoriPekerjaan.add(p.kategoriPekerjaan);
-        if (p.noHp && (!item.noHp || item.noHp === '-')) {
-          item.noHp = p.noHp;
-        }
-      }
+  const [isAddingPekerja, setIsAddingPekerja] = React.useState(false);
+  const [newPekerjaName, setNewPekerjaName] = React.useState('');
+  const [newPekerjaPhone, setNewPekerjaPhone] = React.useState('');
+  const [newPekerjaCategory, setNewPekerjaCategory] = React.useState<'struktur' | 'plafon' | 'atap' | 'listrik' | 'pembersihan'>('struktur');
+
+  const handlePekerjaSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPekerjaName.trim() || !newPekerjaPhone.trim()) return;
+
+    onAddPekerja?.({
+      namaTukang: newPekerjaName.trim(),
+      noHp: newPekerjaPhone.trim(),
+      kategoriPekerjaan: newPekerjaCategory,
     });
-    return Array.from(map.values()).map(v => ({
-      namaTukang: v.namaTukang,
-      kategoriPekerjaan: Array.from(v.kategoriPekerjaan).join(', '),
-      noHp: v.noHp || '-'
-    }));
-  }, [progresList]);
+
+    setNewPekerjaName('');
+    setNewPekerjaPhone('');
+    setNewPekerjaCategory('struktur');
+    setIsAddingPekerja(false);
+  };
 
   const filteredPekerja = React.useMemo(() => {
-    return uniquePekerja.filter(p => 
+    return (pekerjaList || []).filter(p => 
       p.namaTukang.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.kategoriPekerjaan.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.noHp.toLowerCase().includes(searchQuery.toLowerCase())
+      (p.noHp || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [uniquePekerja, searchQuery]);
+  }, [pekerjaList, searchQuery]);
 
   // Look up worker's job category helper
   const getPekerjaCategory = React.useCallback((namaTukang: string) => {
     const key = namaTukang.trim().toLowerCase();
-    const found = uniquePekerja.find(p => p.namaTukang.toLowerCase() === key);
+    const found = (pekerjaList || []).find(p => p.namaTukang.toLowerCase() === key);
     return found ? found.kategoriPekerjaan : null;
-  }, [uniquePekerja]);
+  }, [pekerjaList]);
 
   return (
     <div className="space-y-6">
@@ -285,9 +284,17 @@ export default function OperasionalView({
             </button>
           )}
           {subTab === 'pekerja' && (
-            <div className="text-[11px] text-slate-500 bg-slate-50 px-3 py-2 rounded-xl border border-slate-200/80 font-medium whitespace-nowrap">
-              ✨ Pekerja dikelola via Progres Pekerjaan
-            </div>
+            <button
+               onClick={() => setIsAddingPekerja(!isAddingPekerja)}
+               className={`w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 text-white text-sm font-bold rounded-xl shadow-md transition-all cursor-pointer ${
+                 isAddingPekerja 
+                   ? 'bg-slate-600 hover:bg-slate-700' 
+                   : 'bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-600 hover:to-rose-700'
+               }`}
+            >
+              <UserPlus size={15} />
+              {isAddingPekerja ? 'Tutup Form' : 'Tambah Pekerja Baru'}
+            </button>
           )}
         </div>
       </div>
@@ -507,7 +514,7 @@ export default function OperasionalView({
             <thead>
               <tr className="bg-slate-50/70 border-b border-slate-100 text-slate-500 text-[11px] uppercase tracking-wider font-display font-medium">
                 <th className="p-4">Tanggal Kerja</th>
-                <th className="p-4">Nama Tukang / Pekerja</th>
+                <th className="p-4">Nama Pekerja</th>
                 <th className="p-4">Status & Keterangan</th>
               </tr>
             </thead>
@@ -568,11 +575,76 @@ export default function OperasionalView({
       )}
 
       {subTab === 'pekerja' && (
-        <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white/60 shadow-sm">
+        <>
+          {isAddingPekerja && (
+            <form onSubmit={handlePekerjaSubmit} className="bg-white/80 border border-slate-200/70 shadow-sm rounded-2xl p-5 mb-6 space-y-4 animate-fade-in max-w-2xl">
+              <div className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-2 flex items-center gap-1.5">
+                <span>🛠️</span> Tambah Data Pekerja Baru
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-500 block mb-1">Nama Pekerja*</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Contoh: Pak Supri"
+                    value={newPekerjaName}
+                    onChange={(e) => setNewPekerjaName(e.target.value)}
+                    className="w-full text-xs rounded-xl px-3 py-2 bg-white border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-400 font-semibold"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-500 block mb-1">No WhatsApp*</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Contoh: 0812345678"
+                    value={newPekerjaPhone}
+                    onChange={(e) => setNewPekerjaPhone(e.target.value)}
+                    className="w-full text-xs rounded-xl px-3 py-2 bg-white border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-400 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-500 block mb-1">Kategori Spesialis*</label>
+                  <select
+                    value={newPekerjaCategory}
+                    onChange={(e) => setNewPekerjaCategory(e.target.value as any)}
+                    className="w-full text-xs rounded-xl px-3 py-2 bg-white border border-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-400 font-semibold text-slate-700"
+                  >
+                    <option value="struktur">Struktur</option>
+                    <option value="plafon">Plafon</option>
+                    <option value="atap">Atap</option>
+                    <option value="listrik">Listrik</option>
+                    <option value="pembersihan">Pembersihan</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAddingPekerja(false)}
+                  className="px-3.5 py-2 border border-slate-200 text-slate-500 text-xs font-bold rounded-xl hover:bg-slate-50 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md cursor-pointer"
+                >
+                  Simpan Pekerja
+                </button>
+              </div>
+            </form>
+          )}
+
+          <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white/60 shadow-sm">
           <table className="w-full text-left text-sm border-collapse">
             <thead>
               <tr className="bg-slate-50/70 border-b border-slate-100 text-slate-500 text-[11px] uppercase tracking-wider font-display font-medium">
-                <th className="p-4">Nama Tukang / Pekerja</th>
+                <th className="p-4">Nama Pekerja</th>
                 <th className="p-4">No WhatsApp</th>
               </tr>
             </thead>
@@ -620,13 +692,14 @@ export default function OperasionalView({
               {filteredPekerja.length === 0 && (
                 <tr>
                   <td colSpan={2} className="p-8 text-center text-slate-400">
-                    Tidak ada data pekerja / tukang yang cocok atau tersedia.
+                    Tidak ada data pekerja yang cocok atau tersedia.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );

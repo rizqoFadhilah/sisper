@@ -28,7 +28,7 @@ interface ConstructionViewProps {
   onAddKonstruksi: () => void;
   onAddProgres: () => void;
   onAddPembayaran: () => void;
-  onUpdateProgres?: (id: string, newProgress: number) => void;
+  onUpdateProgres?: (id: string, newProgress: number, namaTukang?: string, noHp?: string) => void;
   onUpdateKonstruksiStatus?: (id: string, newStatus: Konstruksi['statusPembangunan']) => void;
   onUpdateKonstruksiSaleStatus?: (id: string, newStatus: Konstruksi['statusPenjualan']) => void;
 }
@@ -246,7 +246,7 @@ export default function ConstructionView({
             }`}
           >
             <Wrench size={15} />
-            Progres Tukang
+            Progres Pekerja
           </button>
           <button
             onClick={() => { 
@@ -260,7 +260,7 @@ export default function ConstructionView({
             }`}
           >
             <Activity size={15} className="text-indigo-500" />
-            Opname Tukang
+            Opname Pekerja
           </button>
           <button
             onClick={() => { 
@@ -327,9 +327,9 @@ export default function ConstructionView({
             type="text"
             placeholder={
               subTab === 'blok' ? 'Cari Nomor Blok, tipe rumah, atau projek...' : 
-              subTab === 'progres' ? 'Cari id blok, nama tukang, atau deskripsi item...' :
-              subTab === 'opname' ? 'Cari tukang, kategori pekerjaan, atau nama blok...' :
-              'Cari tukang atau kategori rincian...'
+              subTab === 'progres' ? 'Cari id blok, nama pekerja, atau deskripsi item...' :
+              subTab === 'opname' ? 'Cari pekerja, kategori pekerjaan, atau nama blok...' :
+              'Cari pekerja atau kategori rincian...'
             }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -478,7 +478,7 @@ export default function ConstructionView({
                           <span className="font-medium">{costs.materialCost > 0 ? formatRupiah(costs.materialCost) : '-'}</span>
                         </div>
                         <div className="flex justify-end gap-1">
-                          <span>Tukang:</span>
+                          <span>Pekerja:</span>
                           <span className="font-medium">{costs.laborCost > 0 ? formatRupiah(costs.laborCost) : '-'}</span>
                         </div>
                       </div>
@@ -504,7 +504,7 @@ export default function ConstructionView({
             <thead>
               <tr className="bg-slate-50/70 border-b border-slate-100 text-slate-500 font-display font-medium text-[11px] uppercase tracking-wider">
                 <th className="p-4">Rumah Blok</th>
-                <th className="p-4">Tukang (Pekerja) & Kategori</th>
+                <th className="p-4">Pekerja & Kategori</th>
                 <th className="p-4">Item Pekerjaan</th>
                 <th className="p-4">Progres Bar</th>
                 <th className="p-4 text-right">Total Realisasi Kerja</th>
@@ -521,7 +521,31 @@ export default function ConstructionView({
                       <div className="text-[11px] text-slate-500 font-medium mt-0.5">{projectName}</div>
                     </td>
                     <td className="p-4">
-                      <div className="font-semibold text-slate-800">{p.namaTukang}</div>
+                      {editingProgresId === p.id ? (
+                        <div className="space-y-1 bg-slate-50 border border-slate-100 rounded-lg p-1.5 max-w-[150px]">
+                          <input
+                            type="text"
+                            placeholder="Nama Pekerja"
+                            value={p.namaTukang === 'Belum Ditunjuk' ? '' : p.namaTukang}
+                            onChange={(e) => onUpdateProgres?.(p.id, p.persentasiProgres, e.target.value || 'Belum Ditunjuk', p.noHp)}
+                            className="w-full text-xs font-bold rounded border border-slate-200 px-1.5 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400 font-display"
+                          />
+                          <input
+                            type="text"
+                            placeholder="WA: 0812..."
+                            value={p.noHp === '-' ? '' : p.noHp || ''}
+                            onChange={(e) => onUpdateProgres?.(p.id, p.persentasiProgres, p.namaTukang, e.target.value || '-')}
+                            className="w-full text-[10px] rounded border border-slate-200 px-1.5 py-1 bg-white text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-400 font-mono"
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <div className="font-semibold text-slate-800">{p.namaTukang}</div>
+                          {p.noHp && p.noHp !== '-' && (
+                            <div className="text-[10px] font-mono text-slate-400 mt-0.5">{p.noHp}</div>
+                          )}
+                        </>
+                      )}
                       <div className="mt-1">
                         <span className={`inline-flex text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${
                           p.kategoriPekerjaan === 'struktur' ? 'bg-amber-100 text-amber-700' :
@@ -611,7 +635,7 @@ export default function ConstructionView({
           <table className="w-full text-left text-sm border-collapse">
             <thead>
               <tr className="bg-slate-50/70 border-b border-slate-100 text-slate-500 text-[11px] uppercase tracking-wider font-display font-medium">
-                <th className="p-4">Tukang (Pekerja)</th>
+                <th className="p-4">Pekerja</th>
                 <th className="p-4">Kategori</th>
                 <th className="p-4">Blok & Projek</th>
                 <th className="p-4 text-right">Nilai Total Progres</th>
@@ -701,7 +725,7 @@ export default function ConstructionView({
             <thead>
               <tr className="bg-slate-50/70 border-b border-slate-100 text-slate-500 text-[11px] uppercase tracking-wider font-display font-medium">
                 <th className="p-4">Nilai Pembayaran</th>
-                <th className="p-4">Tukang (Pekerja) & Kategori</th>
+                <th className="p-4">Pekerja & Kategori</th>
                 <th className="p-4">Blok & Projek</th>
               </tr>
             </thead>

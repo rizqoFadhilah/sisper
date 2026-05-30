@@ -57,7 +57,7 @@ export interface ProgresPekerjaan {
   blokRumah: string; // linked to Konstruksi.id
   namaTukang: string;
   noHp: string;
-  kategoriPekerjaan: 'struktur' | 'plafon' | 'atap' | 'listrik';
+  kategoriPekerjaan: 'struktur' | 'plafon' | 'atap' | 'listrik' | 'pembersihan';
   itemPekerjaan: string;
   persentasiProgres: number; // 0 - 100
   nilaiPekerjaan: number; // total contract design
@@ -110,6 +110,13 @@ export interface AbsensiPekerja {
   namaTukang: string;
   statusKehadiran: 'Hadir' | 'Sakit' | 'Izin' | 'Alpa';
   keterangan: string;
+}
+
+export interface Pekerja {
+  id: string;
+  namaTukang: string;
+  noHp: string;
+  kategoriPekerjaan: 'struktur' | 'plafon' | 'atap' | 'listrik' | 'pembersihan';
 }
 
 export interface LeadPenjualan {
