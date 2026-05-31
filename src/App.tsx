@@ -49,7 +49,17 @@ import { supabase } from './supabaseClient';
 
 export default function App() {
   // Navigation tabs
-  const [activeTab, setActiveTab] = React.useState<'dashboard' | 'konstruksi' | 'logistik' | 'marketing' | 'operasional'>('dashboard');
+  const [activeTab, setActiveTab] = React.useState<'dashboard' | 'konstruksi' | 'logistik' | 'marketing' | 'operasional'>(() => {
+    const saved = localStorage.getItem('lastActiveTab');
+    if (saved && ['dashboard', 'konstruksi', 'logistik', 'marketing', 'operasional'].includes(saved)) {
+      return saved as 'dashboard' | 'konstruksi' | 'logistik' | 'marketing' | 'operasional';
+    }
+    return 'dashboard';
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem('lastActiveTab', activeTab);
+  }, [activeTab]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [selectedProjectId, setSelectedProjectId] = React.useState<string>('all');
   
