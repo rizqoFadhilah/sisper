@@ -17,6 +17,7 @@ import {
   CreditCard
 } from 'lucide-react';
 import { Konstruksi, ProgresPekerjaan, TransaksiMaterial, Inventory, RincianPembayaran, Pekerja } from '../types';
+import { UserSession } from './LoginView';
 
 interface ConstructionViewProps {
   konstruksiList: Konstruksi[];
@@ -35,6 +36,7 @@ interface ConstructionViewProps {
   initialSearchQuery?: string;
   initialStatusFilter?: string;
   pekerjaList?: Pekerja[];
+  currentUser?: UserSession | null;
 }
 
 export default function ConstructionView({
@@ -54,6 +56,7 @@ export default function ConstructionView({
   initialSearchQuery = '',
   initialStatusFilter = 'all',
   pekerjaList = [],
+  currentUser = null,
 }: ConstructionViewProps) {
   const [subTab, setSubTab] = React.useState<'blok' | 'progres' | 'opname' | 'rincian'>(initialSubTab);
   const [searchQuery, setSearchQuery] = React.useState(initialSearchQuery);
@@ -76,6 +79,12 @@ export default function ConstructionView({
       setStatusFilter(initialStatusFilter);
     }
   }, [initialStatusFilter]);
+
+  React.useEffect(() => {
+    if (currentUser?.role === 'admin_umum' && subTab === 'progres') {
+      setSubTab('blok');
+    }
+  }, [currentUser, subTab]);
 
   const [progresBlokFilter, setProgresBlokFilter] = React.useState('all');
   const [progresKategoriFilter, setProgresKategoriFilter] = React.useState('all');
@@ -309,22 +318,24 @@ export default function ConstructionView({
             <Sliders size={15} />
             Konstruksi (Blok)
           </button>
-          <button
-            onClick={() => { 
-              setSubTab('progres'); 
-              setSearchQuery(''); 
-              setProgresBlokFilter('all');
-              setProgresKategoriFilter('all');
-            }}
-            className={`flex-1 flex items-center justify-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap ${
-              subTab === 'progres'
-                ? 'bg-white text-indigo-600 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <Wrench size={15} />
-            Progres Pekerja
-          </button>
+          {currentUser?.role !== 'admin_umum' && (
+            <button
+              onClick={() => { 
+                setSubTab('progres'); 
+                setSearchQuery(''); 
+                setProgresBlokFilter('all');
+                setProgresKategoriFilter('all');
+              }}
+              className={`flex-1 flex items-center justify-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap ${
+                subTab === 'progres'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Wrench size={15} />
+              Progres Pekerja
+            </button>
+          )}
           <button
             onClick={() => { 
               setSubTab('opname'); 

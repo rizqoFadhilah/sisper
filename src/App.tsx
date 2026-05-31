@@ -15,7 +15,8 @@ import {
   Clock,
   CheckCircle2,
   Wallet,
-  Users
+  Users,
+  LogOut
 } from 'lucide-react';
 
 // Import types
@@ -43,11 +44,33 @@ import LogistikView from './components/LogistikView';
 import OperasionalView from './components/OperasionalView';
 import MarketingView from './components/MarketingView';
 import AddRecordModal from './components/AddRecordModal';
+import LoginView, { UserSession } from './components/LoginView';
 
 // Import Supabase
 import { supabase } from './supabaseClient';
 
 export default function App() {
+  // User Session Multi-Role state
+  const [currentUser, setCurrentUser] = React.useState<UserSession | null>(() => {
+    const saved = localStorage.getItem('currentUserSession');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  React.useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem('currentUserSession', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('currentUserSession');
+    }
+  }, [currentUser]);
+
   // Navigation tabs
   const [activeTab, setActiveTab] = React.useState<'dashboard' | 'konstruksi' | 'logistik' | 'marketing' | 'operasional'>(() => {
     const saved = localStorage.getItem('lastActiveTab');
@@ -60,6 +83,31 @@ export default function App() {
   React.useEffect(() => {
     localStorage.setItem('lastActiveTab', activeTab);
   }, [activeTab]);
+
+  const isTabAllowed = (tab: 'dashboard' | 'konstruksi' | 'logistik' | 'marketing' | 'operasional') => {
+    if (!currentUser) return false;
+    const { role } = currentUser;
+    if (role === 'super_admin' || role === 'admin_umum') return true;
+    if (role === 'logistik') return tab === 'dashboard' || tab === 'logistik';
+    if (role === 'pengawas') return tab === 'dashboard' || tab === 'konstruksi';
+    if (role === 'marketing') return tab === 'dashboard' || tab === 'marketing';
+    return false;
+  };
+
+  // Handle restricted access redirect on state load or role change
+  React.useEffect(() => {
+    if (currentUser && !isTabAllowed(activeTab)) {
+      if (isTabAllowed('dashboard')) {
+        setActiveTab('dashboard');
+      } else if (isTabAllowed('konstruksi')) {
+        setActiveTab('konstruksi');
+      } else if (isTabAllowed('logistik')) {
+        setActiveTab('logistik');
+      } else if (isTabAllowed('marketing')) {
+        setActiveTab('marketing');
+      }
+    }
+  }, [currentUser, activeTab]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [selectedProjectId, setSelectedProjectId] = React.useState<string>('all');
   
@@ -741,6 +789,17 @@ export default function App() {
     setIsModalOpen(true);
   };
 
+  if (!currentUser) {
+    return (
+      <LoginView 
+        onLoginSuccess={(session) => {
+          setCurrentUser(session);
+          setActiveTab('dashboard');
+        }} 
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-tr from-[#ebf3fc] via-[#e2eefa] to-[#f3f8fd] text-slate-800 font-sans">
       
@@ -782,78 +841,100 @@ export default function App() {
           <div className="flex-1 flex flex-col gap-2">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 px-2">Kategori Menu</span>
             
-            <button
-              onClick={() => navigateToTab('dashboard')}
-              className={`w-full justify-start text-left flex items-center gap-3.5 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl transition ${
-                activeTab === 'dashboard'
-                  ? 'bg-indigo-500/10 text-indigo-700 shadow-sm border border-indigo-500/10'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-              }`}
-            >
-              <BarChart3 size={18} className="text-indigo-500" />
-              Overview & Dashboard
-            </button>
+            {isTabAllowed('dashboard') && (
+              <button
+                onClick={() => navigateToTab('dashboard')}
+                className={`w-full justify-start text-left flex items-center gap-3.5 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl transition ${
+                  activeTab === 'dashboard'
+                    ? 'bg-indigo-500/10 text-indigo-700 shadow-sm border border-indigo-500/10'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                }`}
+              >
+                <BarChart3 size={18} className="text-indigo-500" />
+                Overview & Dashboard
+              </button>
+            )}
 
-            <button
-              onClick={() => navigateToTab('konstruksi')}
-              className={`w-full justify-start text-left flex items-center gap-3.5 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl transition ${
-                activeTab === 'konstruksi'
-                  ? 'bg-blue-500/10 text-blue-700 border border-blue-500/10'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-              }`}
-            >
-              <Building size={18} className="text-blue-500" />
-              Pekerjaan Konstruksi
-            </button>
+            {isTabAllowed('konstruksi') && (
+              <button
+                onClick={() => navigateToTab('konstruksi')}
+                className={`w-full justify-start text-left flex items-center gap-3.5 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl transition ${
+                  activeTab === 'konstruksi'
+                    ? 'bg-blue-500/10 text-blue-700 border border-blue-500/10'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                }`}
+              >
+                <Building size={18} className="text-blue-500" />
+                Pekerjaan Konstruksi
+              </button>
+            )}
 
-            <button
-              onClick={() => navigateToTab('logistik')}
-              className={`w-full justify-start text-left flex items-center gap-3.5 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl transition ${
-                activeTab === 'logistik'
-                  ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/10'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-              }`}
-            >
-              <Warehouse size={18} className="text-emerald-500" />
-              Logistik & Gudang
-            </button>
+            {isTabAllowed('logistik') && (
+              <button
+                onClick={() => navigateToTab('logistik')}
+                className={`w-full justify-start text-left flex items-center gap-3.5 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl transition ${
+                  activeTab === 'logistik'
+                    ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/10'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                }`}
+              >
+                <Warehouse size={18} className="text-emerald-500" />
+                Logistik & Gudang
+              </button>
+            )}
 
-            <button
-              onClick={() => navigateToTab('marketing')}
-              className={`w-full justify-start text-left flex items-center gap-3.5 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl transition ${
-                activeTab === 'marketing'
-                  ? 'bg-orange-500/10 text-orange-700 border border-orange-500/10'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-              }`}
-            >
-              <TrendingUp size={18} className="text-orange-500" />
-              Marketing & Penjualan
-            </button>
+            {isTabAllowed('marketing') && (
+              <button
+                onClick={() => navigateToTab('marketing')}
+                className={`w-full justify-start text-left flex items-center gap-3.5 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl transition ${
+                  activeTab === 'marketing'
+                    ? 'bg-orange-500/10 text-orange-700 border border-orange-500/10'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                }`}
+              >
+                <TrendingUp size={18} className="text-orange-500" />
+                Marketing & Penjualan
+              </button>
+            )}
 
-            <button
-              onClick={() => navigateToTab('operasional')}
-              className={`w-full justify-start text-left flex items-center gap-3.5 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl transition ${
-                activeTab === 'operasional'
-                  ? 'bg-rose-500/10 text-rose-700 border border-rose-500/10'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
-              }`}
-            >
-              <Users size={18} className="text-rose-500" />
-              Data karyawan dan pekerja
-            </button>
+            {isTabAllowed('operasional') && (
+              <button
+                onClick={() => navigateToTab('operasional')}
+                className={`w-full justify-start text-left flex items-center gap-3.5 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl transition ${
+                  activeTab === 'operasional'
+                    ? 'bg-rose-500/10 text-rose-700 border border-rose-500/10'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                }`}
+              >
+                <Users size={18} className="text-rose-500" />
+                Data karyawan dan pekerja
+              </button>
+            )}
           </div>
 
-          {/* User profile segment */}
+           {/* User profile segment */}
           <div className="p-4 rounded-2xl bg-white/30 backdrop-blur-md border border-white/20 flex flex-col gap-2.5">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-indigo-500 text-white font-bold flex items-center justify-center text-xs">
-                RF
+              <div className="w-8 h-8 rounded-full bg-indigo-500 text-white font-bold flex items-center justify-center text-xs shrink-0">
+                {currentUser?.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
               </div>
-              <div>
-                <h4 className="text-xs font-bold text-slate-800">Rizqo Fadhilah</h4>
-                <p className="text-[10px] text-indigo-500 font-semibold uppercase tracking-wider">Site Administrator</p>
+              <div className="min-w-0 flex-1">
+                <h4 className="text-xs font-bold text-slate-800 truncate">{currentUser?.name}</h4>
+                <p className="text-[9px] text-indigo-500 font-bold uppercase tracking-wider truncate">{currentUser?.roleLabel}</p>
               </div>
             </div>
+            
+            <button
+              onClick={() => {
+                setCurrentUser(null);
+                setActiveTab('dashboard');
+              }}
+              className="mt-0.5 flex items-center justify-center gap-1.5 w-full py-2 bg-rose-550/10 hover:bg-rose-500/10 text-rose-600 hover:text-rose-700 transition duration-150 rounded-xl text-xs font-bold border border-rose-200/50 cursor-pointer"
+            >
+              <LogOut size={13} />
+              <span>Logout</span>
+            </button>
+
             <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-mono mt-1 pt-2 border-t border-slate-100">
               <Clock size={11} className="text-indigo-400 animate-pulse" />
               <span>{currentTime || 'Syncing...'}</span>
@@ -924,6 +1005,7 @@ export default function App() {
                 initialSearchQuery={initialConstructionSearchQuery}
                 initialStatusFilter={initialConstructionStatusFilter}
                 pekerjaList={pekerjaList}
+                currentUser={currentUser}
               />
             )}
 
@@ -996,54 +1078,88 @@ export default function App() {
 
             {/* Menu Links */}
             <div className="flex-1 flex flex-col gap-2">
-              <button
-                onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }}
-                className={`flex items-center gap-3 px-3 py-3.5 text-xs sm:text-sm font-bold rounded-xl transition ${
-                  activeTab === 'dashboard' ? 'bg-indigo-50/80 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                <BarChart3 size={16} />
-                Overview & Dashboard
-              </button>
+              {isTabAllowed('dashboard') && (
+                <button
+                  onClick={() => { setActiveTab('dashboard'); setIsMobileMenuOpen(false); }}
+                  className={`flex items-center gap-3 px-3 py-3.5 text-xs sm:text-sm font-bold rounded-xl transition ${
+                    activeTab === 'dashboard' ? 'bg-indigo-50/80 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <BarChart3 size={16} />
+                  Overview & Dashboard
+                </button>
+              )}
 
-              <button
-                onClick={() => { setActiveTab('konstruksi'); setIsMobileMenuOpen(false); }}
-                className={`flex items-center gap-3 px-3 py-3.5 text-xs sm:text-sm font-bold rounded-xl transition ${
-                  activeTab === 'konstruksi' ? 'bg-blue-50/80 text-blue-700' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                <Building size={16} />
-                Progres Konstruksi Unit
-              </button>
+              {isTabAllowed('konstruksi') && (
+                <button
+                  onClick={() => { setActiveTab('konstruksi'); setIsMobileMenuOpen(false); }}
+                  className={`flex items-center gap-3 px-3 py-3.5 text-xs sm:text-sm font-bold rounded-xl transition ${
+                    activeTab === 'konstruksi' ? 'bg-blue-50/80 text-blue-700' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <Building size={16} />
+                  Progres Konstruksi Unit
+                </button>
+              )}
 
-              <button
-                onClick={() => { setActiveTab('logistik'); setIsMobileMenuOpen(false); }}
-                className={`flex items-center gap-3 px-3 py-3.5 text-xs sm:text-sm font-bold rounded-xl transition ${
-                  activeTab === 'logistik' ? 'bg-emerald-50/80 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                <Warehouse size={16} />
-                Logistik & Gudang
-              </button>
+              {isTabAllowed('logistik') && (
+                <button
+                  onClick={() => { setActiveTab('logistik'); setIsMobileMenuOpen(false); }}
+                  className={`flex items-center gap-3 px-3 py-3.5 text-xs sm:text-sm font-bold rounded-xl transition ${
+                    activeTab === 'logistik' ? 'bg-emerald-50/80 text-emerald-700' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <Warehouse size={16} />
+                  Logistik & Gudang
+                </button>
+              )}
 
-              <button
-                onClick={() => { setActiveTab('marketing'); setIsMobileMenuOpen(false); }}
-                className={`flex items-center gap-3 px-3 py-3.5 text-xs sm:text-sm font-bold rounded-xl transition ${
-                  activeTab === 'marketing' ? 'bg-orange-50/80 text-orange-700' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                <TrendingUp size={16} />
-                Marketing & Penjualan
-              </button>
+              {isTabAllowed('marketing') && (
+                <button
+                  onClick={() => { setActiveTab('marketing'); setIsMobileMenuOpen(false); }}
+                  className={`flex items-center gap-3 px-3 py-3.5 text-xs sm:text-sm font-bold rounded-xl transition ${
+                    activeTab === 'marketing' ? 'bg-orange-50/80 text-orange-700' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <TrendingUp size={16} />
+                  Marketing & Penjualan
+                </button>
+              )}
 
+              {isTabAllowed('operasional') && (
+                <button
+                  onClick={() => { setActiveTab('operasional'); setIsMobileMenuOpen(false); }}
+                  className={`flex items-center gap-3 px-3 py-3.5 text-xs sm:text-sm font-bold rounded-xl transition ${
+                    activeTab === 'operasional' ? 'bg-rose-50/80 text-rose-700' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <Users size={16} />
+                  Data karyawan dan pekerja
+                </button>
+              )}
+            </div>
+
+            {/* Mobile Profile & Logout */}
+            <div className="border-t pt-4 flex flex-col gap-2">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-indigo-500 text-white font-bold flex items-center justify-center text-xs shrink-0">
+                  {currentUser?.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-xs font-bold text-slate-800 truncate">{currentUser?.name}</h4>
+                  <p className="text-[9px] text-indigo-500 font-bold uppercase tracking-wider truncate">{currentUser?.roleLabel}</p>
+                </div>
+              </div>
               <button
-                onClick={() => { setActiveTab('operasional'); setIsMobileMenuOpen(false); }}
-                className={`flex items-center gap-3 px-3 py-3.5 text-xs sm:text-sm font-bold rounded-xl transition ${
-                  activeTab === 'operasional' ? 'bg-rose-50/80 text-rose-700' : 'text-slate-600 hover:bg-slate-50'
-                }`}
+                onClick={() => {
+                  setCurrentUser(null);
+                  setActiveTab('dashboard');
+                  setIsMobileMenuOpen(false);
+                }}
+                className="mt-1 flex items-center justify-center gap-1.5 w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-xs font-bold border border-rose-100 transition cursor-pointer"
               >
-                <Users size={16} />
-                Data karyawan dan pekerja
+                <LogOut size={13} />
+                <span>Logout</span>
               </button>
             </div>
 
