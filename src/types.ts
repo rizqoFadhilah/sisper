@@ -50,6 +50,7 @@ export interface TransaksiMaterial {
   jumlah: number;
   tanggal: string;
   catatan: string;
+  supplier?: string;
 }
 
 export interface ProgresPekerjaan {

@@ -53,6 +53,40 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   const [selectedProjectId, setSelectedProjectId] = React.useState<string>('all');
   
+  // Controlled Construction Tab & Search Sub-Filter for Navigation redirects
+  const [initialConstructionSubTab, setInitialConstructionSubTab] = React.useState<'blok' | 'progres' | 'opname' | 'rincian'>('blok');
+  const [initialConstructionSearchQuery, setInitialConstructionSearchQuery] = React.useState<string>('');
+  const [initialConstructionStatusFilter, setInitialConstructionStatusFilter] = React.useState<string>('all');
+
+  // Controlled Operasional Tab & Search Sub-Filter for Navigation redirects
+  const [initialOperasionalSubTab, setInitialOperasionalSubTab] = React.useState<'karyawan' | 'absensi' | 'absensi_pekerja' | 'pekerja'>('absensi');
+  const [initialOperasionalSearchQuery, setInitialOperasionalSearchQuery] = React.useState<string>('');
+
+  const navigateToTab = (
+    tab: 'dashboard' | 'konstruksi' | 'logistik' | 'marketing' | 'operasional',
+    options?: { 
+      subTab?: string; 
+      search?: string;
+      statusFilter?: string;
+    }
+  ) => {
+    setActiveTab(tab);
+    if (tab === 'konstruksi') {
+      setInitialConstructionSubTab((options?.subTab as any) || 'blok');
+      setInitialConstructionSearchQuery(options?.search || '');
+      setInitialConstructionStatusFilter(options?.statusFilter || 'all');
+    } else if (tab === 'operasional') {
+      setInitialOperasionalSubTab((options?.subTab as any) || 'absensi');
+      setInitialOperasionalSearchQuery(options?.search || '');
+    } else {
+      setInitialConstructionSubTab('blok');
+      setInitialConstructionSearchQuery('');
+      setInitialConstructionStatusFilter('all');
+      setInitialOperasionalSubTab('absensi');
+      setInitialOperasionalSearchQuery('');
+    }
+  };
+  
   // Rtc Time Tick
   const [currentTime, setCurrentTime] = React.useState('');
 
@@ -532,43 +566,40 @@ export default function App() {
           jumlah: data.jumlah,
           tanggal: data.tanggal,
           catatan: data.catatan,
+          supplier: data.type === 'masuk' ? (data.supplier || '') : '',
         };
         setTransaksiList(prev => [newTx, ...prev]);
 
         // INTELLIGENT WORKFLOW SIDE EFFECT: Update inventory quantities automatically!
-        let updatedQty = 0;
-        let matchedMaterialId = '';
-        setInventoryList(prevInv => {
-          return prevInv.map(inv => {
-            if (inv.namaMaterial.toLowerCase() === data.namaMaterial.toLowerCase()) {
-              const diff = data.type === 'masuk' ? data.jumlah : -data.jumlah;
-              const resultQty = Math.max(0, inv.jumlahStok + diff);
-              updatedQty = resultQty;
-              matchedMaterialId = inv.id;
-              return {
-                ...inv,
-                jumlahStok: resultQty
-              };
-            }
-            return inv;
-          });
-        });
+        const matchedInv = inventoryList.find(
+          inv => inv.namaMaterial.toLowerCase() === data.namaMaterial.toLowerCase()
+        );
 
-        showToast(`Sukses mendaftarkan transaksi mutasi ${data.namaMaterial}: ${data.jumlah} ${data.type}!`);
+        if (matchedInv) {
+          const diff = data.type === 'masuk' ? data.jumlah : -data.jumlah;
+          const updatedQty = Math.max(0, matchedInv.jumlahStok + diff);
 
-        // Supabase Insert Table and update matching stock quantity
-        supabase.from('transaksi_material').insert([newTx]).then(({ error }) => {
-          if (error) console.warn('Supabase insert failed:', error.message);
-        });
+          setInventoryList(prevInv =>
+            prevInv.map(inv =>
+              inv.id === matchedInv.id ? { ...inv, jumlahStok: updatedQty } : inv
+            )
+          );
 
-        if (matchedMaterialId) {
+          // Update matching stock quantity in Database
           supabase.from('inventory')
             .update({ jumlahStok: updatedQty })
-            .eq('id', matchedMaterialId)
+            .eq('id', matchedInv.id)
             .then(({ error }) => {
               if (error) console.warn('Supabase inventory sync failed:', error.message);
             });
         }
+
+        showToast(`Sukses mendaftarkan transaksi mutasi ${data.namaMaterial}: ${data.jumlah} ${data.type}!`);
+
+        // Supabase Insert Table
+        supabase.from('transaksi_material').insert([newTx]).then(({ error }) => {
+          if (error) console.warn('Supabase insert failed:', error.message);
+        });
         break;
       }
       case 'pembayaran': {
@@ -742,7 +773,7 @@ export default function App() {
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 px-2">Kategori Menu</span>
             
             <button
-              onClick={() => setActiveTab('dashboard')}
+              onClick={() => navigateToTab('dashboard')}
               className={`w-full justify-start text-left flex items-center gap-3.5 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl transition ${
                 activeTab === 'dashboard'
                   ? 'bg-indigo-500/10 text-indigo-700 shadow-sm border border-indigo-500/10'
@@ -754,7 +785,7 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => setActiveTab('konstruksi')}
+              onClick={() => navigateToTab('konstruksi')}
               className={`w-full justify-start text-left flex items-center gap-3.5 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl transition ${
                 activeTab === 'konstruksi'
                   ? 'bg-blue-500/10 text-blue-700 border border-blue-500/10'
@@ -766,7 +797,7 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => setActiveTab('logistik')}
+              onClick={() => navigateToTab('logistik')}
               className={`w-full justify-start text-left flex items-center gap-3.5 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl transition ${
                 activeTab === 'logistik'
                   ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/10'
@@ -778,7 +809,7 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => setActiveTab('marketing')}
+              onClick={() => navigateToTab('marketing')}
               className={`w-full justify-start text-left flex items-center gap-3.5 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl transition ${
                 activeTab === 'marketing'
                   ? 'bg-orange-500/10 text-orange-700 border border-orange-500/10'
@@ -790,7 +821,7 @@ export default function App() {
             </button>
 
             <button
-              onClick={() => setActiveTab('operasional')}
+              onClick={() => navigateToTab('operasional')}
               className={`w-full justify-start text-left flex items-center gap-3.5 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl transition ${
                 activeTab === 'operasional'
                   ? 'bg-rose-500/10 text-rose-700 border border-rose-500/10'
@@ -858,8 +889,10 @@ export default function App() {
                 progresList={progresList}
                 absensiList={absensiList}
                 absensiPekerjaList={absensiPekerjaList}
+                transaksiList={transaksiList}
                 selectedProjectId={selectedProjectId}
                 setSelectedProjectId={setSelectedProjectId}
+                onNavigate={navigateToTab}
               />
             )}
 
@@ -877,6 +910,10 @@ export default function App() {
                 onUpdateProgres={handleUpdateProgres}
                 onUpdateKonstruksiStatus={handleUpdateKonstruksiStatus}
                 onUpdateKonstruksiSaleStatus={handleUpdateKonstruksiSaleStatus}
+                initialSubTab={initialConstructionSubTab}
+                initialSearchQuery={initialConstructionSearchQuery}
+                initialStatusFilter={initialConstructionStatusFilter}
+                pekerjaList={pekerjaList}
               />
             )}
 
@@ -917,6 +954,8 @@ export default function App() {
                 onAddAbsensi={() => openModal('absensi')}
                 onAddAbsensiPekerja={() => openModal('absensi_pekerja')}
                 onAddPekerja={handleAddPekerja}
+                initialSubTab={initialOperasionalSubTab}
+                initialSearchQuery={initialOperasionalSearchQuery}
               />
             )}
           </div>
@@ -1022,6 +1061,7 @@ export default function App() {
         inventoryList={inventoryList}
         progresList={progresList}
         pekerjaList={pekerjaList}
+        supplierList={supplierList}
         onSave={handleSaveModal}
       />
 

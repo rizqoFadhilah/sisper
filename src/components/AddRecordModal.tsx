@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Save, AlertCircle } from 'lucide-react';
-import { Project, Gudang, Karyawan, Konstruksi, Inventory, ProgresPekerjaan, Pekerja } from '../types';
+import { Project, Gudang, Karyawan, Konstruksi, Inventory, ProgresPekerjaan, Pekerja, Supplier } from '../types';
 
 interface AddRecordModalProps {
   isOpen: boolean;
@@ -13,6 +13,7 @@ interface AddRecordModalProps {
   inventoryList: Inventory[];
   progresList?: ProgresPekerjaan[];
   pekerjaList?: Pekerja[];
+  supplierList?: Supplier[];
   onSave: (data: any) => void;
 }
 
@@ -27,6 +28,7 @@ export default function AddRecordModal({
   inventoryList,
   progresList = [],
   pekerjaList = [],
+  supplierList = [],
   onSave,
 }: AddRecordModalProps) {
   if (!isOpen || !type) return null;
@@ -132,7 +134,8 @@ export default function AddRecordModal({
         type: 'keluar',
         jumlah: 10,
         tanggal: today,
-        catatan: 'Pekerjaan renovasi lantai',
+        catatan: '',
+        supplier: '',
       });
     } else if (type === 'pembayaran') {
       const defaultWorker = (pekerjaList && pekerjaList.length > 0)
@@ -144,7 +147,7 @@ export default function AddRecordModal({
       setFormData({
         namaTukang: defaultWorker.namaTukang,
         kategoriPekerjaan: (defaultWorker as any).kategoriPekerjaan || 'struktur',
-        nilaiPembayaran: 0,
+        nilaiPembayaran: '',
         tanggalPembayaran: today,
         namaProjek: projects[0]?.name || '',
         namaBlok: konstruksiList[0]?.id || 'A-01',
@@ -199,7 +202,7 @@ export default function AddRecordModal({
     let finalValue = value;
     // Safely parse number variables
     if (['luasTanah', 'luasBangunan', 'jumlahStok', 'minimumStock', 'harga', 'jumlah', 'persentasiProgres', 'nilaiPekerjaan', 'nilaiPembayaran', 'komisi', 'gajiHarian'].includes(key)) {
-      finalValue = Number(value) || 0;
+      finalValue = value === '' ? '' : (Number(value) || 0);
     }
 
     // Auto update project name if projectId changes
@@ -766,7 +769,7 @@ export default function AddRecordModal({
                 </select>
               </div>
 
-              <div className={formData.type === 'masuk' ? "grid grid-cols-1" : "grid grid-cols-2 gap-4"}>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-slate-600 block mb-1">Pilih Gudang Asal/Tujuan</label>
                   <select
@@ -779,7 +782,7 @@ export default function AddRecordModal({
                     ))}
                   </select>
                 </div>
-                {formData.type !== 'masuk' && (
+                {formData.type !== 'masuk' ? (
                   <div>
                     <label className="text-xs font-bold text-slate-600 block mb-1">Target Blok Rumah</label>
                     <select
@@ -789,6 +792,20 @@ export default function AddRecordModal({
                     >
                       {konstruksiList.map((k) => (
                         <option key={k.id} value={k.id}>Blok {k.id}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 block mb-1">Partner Supplier</label>
+                    <select
+                      value={formData.supplier || ''}
+                      onChange={(e) => handleChange('supplier', e.target.value)}
+                      className="w-full text-sm rounded-xl px-3 py-2 bg-white border border-slate-200"
+                    >
+                      <option value="">-- Pilih Supplier --</option>
+                      {supplierList.map((s) => (
+                        <option key={s.id} value={s.namaSupplier}>{s.namaSupplier}</option>
                       ))}
                     </select>
                   </div>
@@ -920,7 +937,8 @@ export default function AddRecordModal({
                 <input
                   type="number"
                   required
-                  value={formData.nilaiPembayaran || 0}
+                  placeholder="Masukkan jumlah nominal..."
+                  value={formData.nilaiPembayaran ?? ''}
                   onChange={(e) => handleChange('nilaiPembayaran', e.target.value)}
                   className="w-full text-sm rounded-xl px-3 py-2 bg-white border border-slate-200"
                 />

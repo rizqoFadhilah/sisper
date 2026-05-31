@@ -9,7 +9,10 @@ import {
   AlertOctagon, 
   Tags, 
   MapPin, 
-  Phone 
+  Phone,
+  TrendingUp,
+  TrendingDown,
+  Coins
 } from 'lucide-react';
 import { Inventory, Gudang, Supplier, TransaksiMaterial, Project, Konstruksi } from '../types';
 
@@ -87,6 +90,78 @@ export default function LogistikView({
 
   const [subTab, setSubTab] = React.useState<'inventory' | 'gudang' | 'supplier' | 'transaksi'>('transaksi');
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [metricsTimeframe, setMetricsTimeframe] = React.useState<'hari' | 'minggu' | 'bulan'>('hari');
+  const [stockStatusFilter, setStockStatusFilter] = React.useState<string>('all');
+
+  // Compute metrics (quantity and value) dynamically based on active timeframe selection
+  const metricsData = React.useMemo(() => {
+    const today = new Date();
+    // format to YYYY-MM-DD in local time
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+
+    // Helper using mid-day to completely bypass timezone limits
+    const parseLocalDate = (dateStr: string) => {
+      if (!dateStr) return null;
+      const parts = dateStr.split('-');
+      if (parts.length !== 3) return null;
+      const yr = parseInt(parts[0], 10);
+      const mth = parseInt(parts[1], 10) - 1;
+      const dy = parseInt(parts[2], 10);
+      return new Date(yr, mth, dy, 12, 0, 0);
+    };
+
+    // Calculate dates bound values
+    // Weekly: within current week starting from Sunday 00:00:00 to Saturday 23:59:59
+    const startOfWeek = new Date(today);
+    const currentDay = today.getDay();
+    startOfWeek.setDate(today.getDate() - currentDay);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    let filtered = transaksiList;
+    if (metricsTimeframe === 'hari') {
+      filtered = transaksiList.filter(t => t.tanggal === todayStr);
+    } else if (metricsTimeframe === 'minggu') {
+      filtered = transaksiList.filter(t => {
+        const d = parseLocalDate(t.tanggal);
+        return d !== null && d >= startOfWeek && d <= endOfWeek;
+      });
+    } else if (metricsTimeframe === 'bulan') {
+      filtered = transaksiList.filter(t => {
+        const d = parseLocalDate(t.tanggal);
+        return d !== null && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+      });
+    }
+
+    let masukQty = 0;
+    let keluarQty = 0;
+    let keluarCost = 0;
+
+    filtered.forEach(t => {
+      const matchedInventory = inventoryList.find(inv => inv.namaMaterial === t.namaMaterial);
+      const hargaSatuan = matchedInventory ? matchedInventory.harga : 0;
+      const amount = t.jumlah || 0;
+
+      if (t.type === 'masuk') {
+        masukQty += amount;
+      } else if (t.type === 'keluar') {
+        keluarQty += amount;
+        keluarCost += (amount * hargaSatuan);
+      }
+    });
+
+    return {
+      masukQty,
+      keluarQty,
+      keluarCost
+    };
+  }, [transaksiList, inventoryList, metricsTimeframe]);
 
   // Currency utility helper
   const formatRupiah = (val: number) => {
@@ -147,11 +222,18 @@ export default function LogistikView({
 
   // Filters based on active workspace and typing
   const filteredInventory = React.useMemo(() => {
-    return inventoryList.filter(item => 
-      item.namaMaterial.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.kategoriMaterial.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [inventoryList, searchQuery]);
+    return inventoryList.filter(item => {
+      const matchSearch = item.namaMaterial.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.kategoriMaterial.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!matchSearch) return false;
+
+      if (stockStatusFilter === 'all') return true;
+      const isLow = item.jumlahStok <= item.minimumStock;
+      if (stockStatusFilter === 'aman') return !isLow;
+      if (stockStatusFilter === 're-order') return isLow;
+      return true;
+    });
+  }, [inventoryList, searchQuery, stockStatusFilter]);
 
   const filteredGudang = React.useMemo(() => {
     return gudangList.filter(g => 
@@ -181,7 +263,7 @@ export default function LogistikView({
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-white/55 backdrop-blur-md p-2 rounded-2xl border border-white/40">
         <div className="grid grid-cols-2 sm:flex sm:space-x-1 gap-1.5 w-full lg:w-auto p-1 bg-slate-100 rounded-xl">
           <button
-            onClick={() => { setSubTab('transaksi'); setSearchQuery(''); }}
+            onClick={() => { setSubTab('transaksi'); setSearchQuery(''); setStockStatusFilter('all'); }}
             className={`flex items-center justify-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${
               subTab === 'transaksi' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
             }`}
@@ -190,7 +272,7 @@ export default function LogistikView({
             Transaksi Material
           </button>
           <button
-            onClick={() => { setSubTab('inventory'); setSearchQuery(''); }}
+            onClick={() => { setSubTab('inventory'); setSearchQuery(''); setStockStatusFilter('all'); }}
             className={`flex items-center justify-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${
               subTab === 'inventory' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
             }`}
@@ -199,7 +281,7 @@ export default function LogistikView({
             Inventory Stok
           </button>
           <button
-            onClick={() => { setSubTab('gudang'); setSearchQuery(''); }}
+            onClick={() => { setSubTab('gudang'); setSearchQuery(''); setStockStatusFilter('all'); }}
             className={`flex items-center justify-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${
               subTab === 'gudang' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
             }`}
@@ -208,7 +290,7 @@ export default function LogistikView({
             Gudang
           </button>
           <button
-            onClick={() => { setSubTab('supplier'); setSearchQuery(''); }}
+            onClick={() => { setSubTab('supplier'); setSearchQuery(''); setStockStatusFilter('all'); }}
             className={`flex items-center justify-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all ${
               subTab === 'supplier' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
             }`}
@@ -236,16 +318,32 @@ export default function LogistikView({
         </button>
       </div>
 
-      {/* Search Filter */}
-      <div className="relative p-1 rounded-xl bg-white/45 backdrop-blur-md border border-white/20">
-        <Search className="absolute left-4 top-3.5 text-slate-400" size={18} />
-        <input
-          type="text"
-          placeholder={`Cari dalam workspace ${subTab}...`}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full text-sm rounded-xl pl-11 pr-4 py-2.5 bg-white/70 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-400"
-        />
+      {/* Search & Filter */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1 p-1 rounded-xl bg-white/45 backdrop-blur-md border border-white/20">
+          <Search className="absolute left-4 top-4 text-slate-400" size={18} />
+          <input
+            type="text"
+            placeholder={`Cari dalam workspace ${subTab}...`}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full text-sm rounded-xl pl-11 pr-4 py-2.5 bg-white/70 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          />
+        </div>
+
+        {subTab === 'inventory' && (
+          <div className="p-1 rounded-xl bg-white/45 backdrop-blur-md border border-white/20 flex items-center min-w-[220px]">
+            <select
+              value={stockStatusFilter}
+              onChange={(e) => setStockStatusFilter(e.target.value)}
+              className="w-full text-sm rounded-xl px-3 py-2 bg-white/70 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-slate-700 font-semibold cursor-pointer"
+            >
+              <option value="all">Semua Status Stok</option>
+              <option value="aman">Status: AMAN</option>
+              <option value="re-order">Status: RE-ORDER (Minim)</option>
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Render selected table */}
@@ -395,62 +493,159 @@ export default function LogistikView({
       )}
 
       {subTab === 'transaksi' && (
-        <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white/60 shadow-sm">
-          <table className="w-full text-left text-sm border-collapse">
-            <thead>
-              <tr className="bg-slate-50/70 border-b border-slate-100 text-slate-500 text-[11px] uppercase tracking-wider font-display font-medium">
-                <th className="p-4">Tanggal</th>
-                <th className="p-4">Nama Material</th>
-                <th className="p-4">Projek & Gudang</th>
-                <th className="p-4 text-center">Tipe Transaksi</th>
-                <th className="p-4 text-right">Biaya Material</th>
-                <th className="p-4">Catatan Operasional</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700 text-xs">
-              {filteredTransaksi.map((t) => {
-                const matchedInventory = inventoryList.find(inv => inv.namaMaterial === t.namaMaterial);
-                const hargaSatuan = matchedInventory ? matchedInventory.harga : 0;
-                const biayaMaterial = t.type === 'keluar' ? t.jumlah * hargaSatuan : null;
+        <div className="space-y-5">
+          {/* Metrics Section Header with Timeframe Filters */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-white/75 backdrop-blur-md rounded-2xl border border-slate-100 shadow-sm gap-4">
+            <div>
+              <h4 className="font-display font-bold text-slate-800 text-sm">Ringkasan Mutasi Material</h4>
+              <p className="text-[11px] text-slate-400 mt-0.5">Analisis kuantitas material masuk & keluar beserta estimasi pembiayaan</p>
+            </div>
+            
+            {/* Filter buttons */}
+            <div className="flex p-1 bg-slate-100 rounded-xl border border-slate-200/40">
+              <button
+                onClick={() => setMetricsTimeframe('hari')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                  metricsTimeframe === 'hari'
+                    ? 'bg-white text-indigo-700 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Hari Ini
+              </button>
+              <button
+                onClick={() => setMetricsTimeframe('minggu')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                  metricsTimeframe === 'minggu'
+                    ? 'bg-white text-indigo-700 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Mingguan
+              </button>
+              <button
+                onClick={() => setMetricsTimeframe('bulan')}
+                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                  metricsTimeframe === 'bulan'
+                    ? 'bg-white text-indigo-700 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Bulanan
+              </button>
+            </div>
+          </div>
 
-                return (
-                  <tr key={t.id} className="hover:bg-white/40 ease-in-out transition">
-                    <td className="p-4">
-                      <div className="font-mono font-bold text-indigo-600 text-[10px] mb-0.5">
-                        {t.type === 'masuk' ? '-' : (t.blokRumah && t.blokRumah !== '-' ? `Blok ${t.blokRumah}` : '-')}
-                      </div>
-                      <div className="font-mono text-slate-400">{t.tanggal}</div>
-                    </td>
-                    <td className="p-4 font-semibold text-slate-800">{t.namaMaterial}</td>
-                    <td className="p-4">
-                      <div className="text-xs font-semibold text-slate-700">{getProjectNameForTransaksi(t)}</div>
-                      <div className="text-[10px] text-slate-450 mt-0.5 font-medium">{t.namaGudang}</div>
-                    </td>
-                    <td className="p-4 text-center">
-                      <div>
-                        <span className={`inline-flex font-extrabold uppercase px-2 py-0.5 text-[10px] rounded ${
-                          t.type === 'masuk' 
-                            ? 'bg-emerald-100 text-emerald-800' 
-                            : 'bg-rose-100 text-rose-800'
+          {/* Metrics Panel / Table Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Total Material Masuk */}
+            <div className="p-4 rounded-2xl border border-emerald-100 bg-emerald-50/30 flex items-center justify-between shadow-xs">
+              <div>
+                <span className="text-xs font-bold text-emerald-600/90 uppercase tracking-wider block">Material Masuk</span>
+                <span className="font-mono text-2xl font-black text-slate-800 leading-none block mt-1.5">
+                  {metricsData.masukQty} <span className="text-xs font-normal text-slate-450">satuan</span>
+                </span>
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  {metricsTimeframe === 'hari' ? 'Total masuk hari ini' : metricsTimeframe === 'minggu' ? 'Total masuk minggu ini' : 'Total masuk bulan ini'}
+                </span>
+              </div>
+              <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl shadow-xs">
+                <TrendingUp size={18} />
+              </div>
+            </div>
+
+            {/* Total Material Keluar */}
+            <div className="p-4 rounded-2xl border border-rose-100 bg-rose-50/30 flex items-center justify-between shadow-xs">
+              <div>
+                <span className="text-xs font-bold text-rose-600/90 uppercase tracking-wider block">Material Keluar</span>
+                <span className="font-mono text-2xl font-black text-slate-800 leading-none block mt-1.5">
+                  {metricsData.keluarQty} <span className="text-xs font-normal text-slate-455">satuan</span>
+                </span>
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  {metricsTimeframe === 'hari' ? 'Total keluar hari ini' : metricsTimeframe === 'minggu' ? 'Total keluar minggu ini' : 'Total keluar bulan ini'}
+                </span>
+              </div>
+              <div className="p-3 bg-rose-100 text-rose-600 rounded-xl shadow-xs">
+                <TrendingDown size={18} />
+              </div>
+            </div>
+
+            {/* Total Biaya Material Keluar */}
+            <div className="p-4 rounded-2xl border border-indigo-100 bg-indigo-50/30 flex items-center justify-between shadow-xs">
+              <div>
+                <span className="text-xs font-bold text-indigo-600/90 uppercase tracking-wider block">Total Biaya Keluar</span>
+                <span className="font-mono text-lg font-extrabold text-slate-800 leading-none block mt-1.5">
+                  {formatRupiah(metricsData.keluarCost)}
+                </span>
+                <span className="text-[10px] text-slate-400 mt-1.5 block">
+                  Estimasi nilai material keluar
+                </span>
+              </div>
+              <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl shadow-xs">
+                <Coins size={18} />
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white/60 shadow-sm">
+            <table className="w-full text-left text-sm border-collapse">
+              <thead>
+                <tr className="bg-slate-50/70 border-b border-slate-100 text-slate-500 text-[11px] uppercase tracking-wider font-display font-medium">
+                  <th className="p-4">Tanggal</th>
+                  <th className="p-4">Nama Material</th>
+                  <th className="p-4">Projek & Gudang</th>
+                  <th className="p-4 text-center">Tipe Transaksi</th>
+                  <th className="p-4 text-right">Biaya Material</th>
+                  <th className="p-4">Catatan Operasional</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-700 text-xs">
+                {filteredTransaksi.map((t) => {
+                  const matchedInventory = inventoryList.find(inv => inv.namaMaterial === t.namaMaterial);
+                  const hargaSatuan = matchedInventory ? matchedInventory.harga : 0;
+                  const biayaMaterial = t.type === 'keluar' ? t.jumlah * hargaSatuan : null;
+
+                  return (
+                    <tr key={t.id} className="hover:bg-white/40 ease-in-out transition">
+                      <td className="p-4">
+                        <div className="font-mono font-bold text-indigo-600 text-[10px] mb-0.5">
+                          {t.type === 'masuk' 
+                            ? (t.supplier ? `Supplier: ${t.supplier}` : 'Masuk Gudang') 
+                            : (t.blokRumah && t.blokRumah !== '-' ? `Blok ${t.blokRumah}` : '-')}
+                        </div>
+                        <div className="font-mono text-slate-400">{t.tanggal}</div>
+                      </td>
+                      <td className="p-4 font-semibold text-slate-800">{t.namaMaterial}</td>
+                      <td className="p-4">
+                        <div className="text-xs font-semibold text-slate-700">{getProjectNameForTransaksi(t)}</div>
+                        <div className="text-[10px] text-slate-450 mt-0.5 font-medium">{t.namaGudang}</div>
+                      </td>
+                      <td className="p-4 text-center">
+                        <div>
+                          <span className={`inline-flex font-extrabold uppercase px-2 py-0.5 text-[10px] rounded ${
+                            t.type === 'masuk' 
+                              ? 'bg-emerald-100 text-emerald-800' 
+                              : 'bg-rose-100 text-rose-800'
+                          }`}>
+                            {t.type}
+                          </span>
+                        </div>
+                        <div className={`mt-1 font-bold font-mono text-xs ${
+                          t.type === 'masuk' ? 'text-emerald-600' : 'text-rose-600'
                         }`}>
-                          {t.type}
-                        </span>
-                      </div>
-                      <div className={`mt-1 font-bold font-mono text-xs ${
-                        t.type === 'masuk' ? 'text-emerald-600' : 'text-rose-600'
-                      }`}>
-                        {t.type === 'masuk' ? '+' : '-'}{t.jumlah}
-                      </div>
-                    </td>
-                    <td className="p-4 text-right font-semibold font-mono text-slate-700">
-                      {biayaMaterial !== null ? formatRupiah(biayaMaterial) : '-'}
-                    </td>
-                    <td className="p-4 italic text-slate-500 text-xs max-w-xs">{t.catatan}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                          {t.type === 'masuk' ? '+' : '-'}{t.jumlah}
+                        </div>
+                      </td>
+                      <td className="p-4 text-right font-semibold font-mono text-slate-700">
+                        {biayaMaterial !== null ? formatRupiah(biayaMaterial) : '-'}
+                      </td>
+                      <td className="p-4 italic text-slate-500 text-xs max-w-xs">{t.catatan}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

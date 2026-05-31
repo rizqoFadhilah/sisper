@@ -86,7 +86,7 @@ export default function FinansialView({
         nilaiTotal: g.totalValue,
         nilaiTerbayar: payments,
         nilaiBelumTerbayar: unpaid,
-        persenTerbayar: Math.min(100, paidPct),
+        persenTerbayar: paidPct,
         tanggalMulaiPekerjaan: g.tanggalMulai
       };
     });
@@ -207,7 +207,7 @@ export default function FinansialView({
                         <div className="w-20 bg-slate-100 h-1.5 rounded-full overflow-hidden">
                           <div 
                             className="bg-gradient-to-r from-emerald-400 to-emerald-500 h-1.5 rounded-full"
-                            style={{ width: `${opn.persenTerbayar}%` }}
+                            style={{ width: `${Math.min(100, opn.persenTerbayar)}%` }}
                           />
                         </div>
                       </div>

@@ -10,7 +10,7 @@ import {
   Layers, 
   AlertTriangle 
 } from 'lucide-react';
-import { Project, Konstruksi, Inventory, ProgresPekerjaan, AbsensiKaryawan, AbsensiPekerja } from '../types';
+import { Project, Konstruksi, Inventory, ProgresPekerjaan, AbsensiKaryawan, AbsensiPekerja, TransaksiMaterial } from '../types';
 
 interface DashboardViewProps {
   projects: Project[];
@@ -19,8 +19,13 @@ interface DashboardViewProps {
   progresList: ProgresPekerjaan[];
   absensiList: AbsensiKaryawan[];
   absensiPekerjaList: AbsensiPekerja[];
+  transaksiList: TransaksiMaterial[];
   selectedProjectId: string;
   setSelectedProjectId: (id: string) => void;
+  onNavigate?: (
+    tab: 'dashboard' | 'konstruksi' | 'logistik' | 'marketing' | 'operasional', 
+    options?: { subTab?: string; search?: string; statusFilter?: string }
+  ) => void;
 }
 
 interface DonutChartProps {
@@ -30,9 +35,10 @@ interface DonutChartProps {
   colorClass: string;
   strokeColor: string;
   icon: React.ReactNode;
+  onClick?: () => void;
 }
 
-function DonutChartWidget({ value, title, subtitle, strokeColor, icon }: DonutChartProps) {
+function DonutChartWidget({ value, title, subtitle, strokeColor, icon, onClick }: DonutChartProps) {
   const radius = 36;
   const strokeWidth = 7;
   const normalizedRadius = radius - strokeWidth / 2;
@@ -40,7 +46,12 @@ function DonutChartWidget({ value, title, subtitle, strokeColor, icon }: DonutCh
   const strokeDashoffset = circumference - (value / 100) * circumference;
 
   return (
-    <div className="glass-card p-3 xs:p-5 rounded-2xl flex flex-col items-center justify-between text-center min-h-[180px] xs:min-h-[220px] hover:scale-[1.01] transition-all duration-300">
+    <div 
+      onClick={onClick} 
+      className={`glass-card p-3 xs:p-5 rounded-2xl flex flex-col items-center justify-between text-center min-h-[180px] xs:min-h-[220px] hover:scale-[1.01] transition-all duration-300 ${
+        onClick ? 'cursor-pointer hover:border-slate-300 hover:shadow-md active:scale-95' : ''
+      }`}
+    >
       <div className="w-full flex justify-between items-center mb-1">
         <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 tracking-wider flex items-center gap-1.5 uppercase line-clamp-1">
           {icon}
@@ -92,8 +103,10 @@ export default function DashboardView({
   progresList,
   absensiList,
   absensiPekerjaList,
+  transaksiList,
   selectedProjectId,
   setSelectedProjectId,
+  onNavigate,
 }: DashboardViewProps) {
 
   // 1. Filtered data
@@ -221,7 +234,20 @@ export default function DashboardView({
       } else {
         avgProgress = home.statusPembangunan === 'terbangun' ? 100 : 0;
       }
-      const totalNilaiPekerjaan = blockProgs.reduce((sum, p) => sum + p.nilaiPekerjaan, 0);
+
+      // Calculate total builder costs (material + labor) exactly as done in construction view
+      const blockTransactions = transaksiList.filter(
+        (t) => t.blokRumah === home.id && t.type === 'keluar'
+      );
+      const totalMaterialCost = blockTransactions.reduce((sum, t) => {
+        const match = inventoryList.find((inv) => inv.namaMaterial === t.namaMaterial);
+        const price = match ? match.harga : 0;
+        return sum + (t.jumlah * price);
+      }, 0);
+
+      const totalLaborCost = blockProgs.reduce((sum, p) => sum + p.totalNilaiPekerjaan, 0);
+      const totalBiayaBangun = totalMaterialCost + totalLaborCost;
+
       return {
         id: home.id,
         type: home.type,
@@ -229,10 +255,10 @@ export default function DashboardView({
         projectName: home.projectName,
         statusPembangunan: home.statusPembangunan,
         statusPenjualan: home.statusPenjualan,
-        totalNilaiPekerjaan,
+        totalBiayaBangun,
       };
     });
-  }, [filteredKonstruksi, progresList]);
+  }, [filteredKonstruksi, progresList, transaksiList, inventoryList]);
 
   // Format currency helper
   const formatRupiah = (val: number) => {
@@ -279,7 +305,10 @@ export default function DashboardView({
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             
             {/* 1. Total Kapling Unit Badge Card */}
-            <div className="glass-card p-3 xs:p-4 sm:p-5 rounded-2xl flex flex-col justify-between hover:scale-[1.01] transition-all duration-300">
+            <div 
+              onClick={() => onNavigate?.('konstruksi')}
+              className="glass-card p-3 xs:p-4 sm:p-5 rounded-2xl flex flex-col justify-between cursor-pointer hover:scale-[1.01] hover:border-cyan-400 hover:shadow-lg active:scale-95 transition-all duration-300"
+            >
               <div className="flex justify-between items-start mb-3">
                 <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-600 shadow-sm">
                   <Home size={18} />
@@ -298,7 +327,10 @@ export default function DashboardView({
             </div>
 
             {/* 2. On Progres Pembangunan Badge Card */}
-            <div className="glass-card p-3 xs:p-4 sm:p-5 rounded-2xl flex flex-col justify-between hover:scale-[1.01] transition-all duration-300">
+            <div 
+              onClick={() => onNavigate?.('konstruksi', { subTab: 'blok', statusFilter: 'onProgres' })}
+              className="glass-card p-3 xs:p-4 sm:p-5 rounded-2xl flex flex-col justify-between cursor-pointer hover:scale-[1.01] hover:border-violet-400 hover:shadow-lg active:scale-95 transition-all duration-300"
+            >
               <div className="flex justify-between items-start mb-3">
                 <div className="p-2 rounded-xl bg-violet-500/10 text-violet-600 shadow-sm">
                   <Activity size={18} />
@@ -319,7 +351,10 @@ export default function DashboardView({
             </div>
 
             {/* 3. Terbangun Belum Booking Badge Card */}
-            <div className="glass-card p-3 xs:p-4 sm:p-5 rounded-2xl flex flex-col justify-between hover:scale-[1.01] transition-all duration-300">
+            <div 
+              onClick={() => onNavigate?.('konstruksi', { subTab: 'blok', statusFilter: 'readyStock' })}
+              className="glass-card p-3 xs:p-4 sm:p-5 rounded-2xl flex flex-col justify-between cursor-pointer hover:scale-[1.01] hover:border-orange-400 hover:shadow-lg active:scale-95 transition-all duration-300"
+            >
               <div className="flex justify-between items-start mb-3">
                 <div className="p-2 rounded-xl bg-orange-500/10 text-orange-600 shadow-sm">
                   <AlertTriangle size={18} />
@@ -340,7 +375,10 @@ export default function DashboardView({
             </div>
 
             {/* 4. Terbooking Belum Terbangun Badge Card */}
-            <div className="glass-card p-3 xs:p-4 sm:p-5 rounded-2xl flex flex-col justify-between hover:scale-[1.01] transition-all duration-300">
+            <div 
+              onClick={() => onNavigate?.('konstruksi', { subTab: 'blok', statusFilter: 'backlog' })}
+              className="glass-card p-3 xs:p-4 sm:p-5 rounded-2xl flex flex-col justify-between cursor-pointer hover:scale-[1.01] hover:border-fuchsia-400 hover:shadow-lg active:scale-95 transition-all duration-300"
+            >
               <div className="flex justify-between items-start mb-3">
                 <div className="p-2 rounded-xl bg-fuchsia-500/10 text-fuchsia-600 shadow-sm">
                   <TrendingUp size={18} />
@@ -379,6 +417,7 @@ export default function DashboardView({
               colorClass="text-indigo-500"
               strokeColor="#6366f1"
               icon={<Users size={14} className="text-indigo-500" />}
+              onClick={() => onNavigate?.('operasional')}
             />
 
             {/* Donut Chart 4: Kehadiran Pekerja */}
@@ -389,6 +428,7 @@ export default function DashboardView({
               colorClass="text-amber-500"
               strokeColor="#f59e0b"
               icon={<Activity size={14} className="text-amber-500" />}
+              onClick={() => onNavigate?.('operasional', { subTab: 'absensi_pekerja' })}
             />
 
             {/* Donut Chart 1: Total Terbangun */}
@@ -399,6 +439,7 @@ export default function DashboardView({
               colorClass="text-emerald-500"
               strokeColor="#10b981"
               icon={<Layers size={14} className="text-emerald-500" />}
+              onClick={() => onNavigate?.('konstruksi', { subTab: 'blok', statusFilter: 'terbangun' })}
             />
 
             {/* Donut Chart 2: Total Terjual */}
@@ -409,6 +450,7 @@ export default function DashboardView({
               colorClass="text-rose-500"
               strokeColor="#f43f5e"
               icon={<ShoppingBag size={14} className="text-rose-500" />}
+              onClick={() => onNavigate?.('konstruksi', { subTab: 'blok', statusFilter: 'terjual' })}
             />
 
             
@@ -443,10 +485,14 @@ export default function DashboardView({
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {homeProgressList.map((home) => (
-            <div key={home.id} className="p-4 rounded-xl border border-slate-100 bg-white/70 hover:shadow-md transition">
+            <div 
+              key={home.id} 
+              onClick={() => onNavigate?.('konstruksi', { subTab: 'progres', search: home.id })}
+              className="p-4 rounded-xl border border-slate-100 bg-white/70 hover:border-indigo-200 cursor-pointer hover:shadow-md transition active:scale-98 group"
+            >
               <div className="flex justify-between items-start mb-2">
                 <div>
-                  <h5 className="font-display font-bold text-slate-800 text-sm">Blok {home.id}</h5>
+                  <h5 className="font-display font-bold text-slate-800 text-sm group-hover:text-indigo-600 transition">Blok {home.id}</h5>
                   <p className="text-[11px] text-slate-400">{home.projectName}</p>
                 </div>
                 {/* Badges */}
@@ -473,8 +519,8 @@ export default function DashboardView({
               {/* Progress & Cost representation */}
               <div className="mt-3.5 space-y-2">
                 <div className="flex justify-between items-center text-[11px] text-slate-500 border-t border-slate-100/60 pt-2">
-                  <span>Biaya Bangun Pekerjaan</span>
-                  <span className="font-semibold text-indigo-600 font-mono text-xs">{formatRupiah(home.totalNilaiPekerjaan)}</span>
+                  <span>Biaya Bangun</span>
+                  <span className="font-semibold text-indigo-600 font-mono text-xs">{formatRupiah(home.totalBiayaBangun)}</span>
                 </div>
                 <div>
                   <div className="flex justify-between text-xs font-semibold text-slate-600 mb-1">

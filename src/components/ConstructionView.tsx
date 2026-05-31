@@ -16,7 +16,7 @@ import {
   Receipt,
   CreditCard
 } from 'lucide-react';
-import { Konstruksi, ProgresPekerjaan, TransaksiMaterial, Inventory, RincianPembayaran } from '../types';
+import { Konstruksi, ProgresPekerjaan, TransaksiMaterial, Inventory, RincianPembayaran, Pekerja } from '../types';
 
 interface ConstructionViewProps {
   konstruksiList: Konstruksi[];
@@ -31,6 +31,10 @@ interface ConstructionViewProps {
   onUpdateProgres?: (id: string, newProgress: number, namaTukang?: string, noHp?: string) => void;
   onUpdateKonstruksiStatus?: (id: string, newStatus: Konstruksi['statusPembangunan']) => void;
   onUpdateKonstruksiSaleStatus?: (id: string, newStatus: Konstruksi['statusPenjualan']) => void;
+  initialSubTab?: 'blok' | 'progres' | 'opname' | 'rincian';
+  initialSearchQuery?: string;
+  initialStatusFilter?: string;
+  pekerjaList?: Pekerja[];
 }
 
 export default function ConstructionView({
@@ -45,13 +49,38 @@ export default function ConstructionView({
   onAddPembayaran,
   onUpdateProgres,
   onUpdateKonstruksiStatus,
-  onUpdateKonstruksiSaleStatus
+  onUpdateKonstruksiSaleStatus,
+  initialSubTab = 'blok',
+  initialSearchQuery = '',
+  initialStatusFilter = 'all',
+  pekerjaList = [],
 }: ConstructionViewProps) {
-  const [subTab, setSubTab] = React.useState<'blok' | 'progres' | 'opname' | 'rincian'>('blok');
-  const [searchQuery, setSearchQuery] = React.useState('');
-  const [statusFilter, setStatusFilter] = React.useState('all');
+  const [subTab, setSubTab] = React.useState<'blok' | 'progres' | 'opname' | 'rincian'>(initialSubTab);
+  const [searchQuery, setSearchQuery] = React.useState(initialSearchQuery);
+  const [statusFilter, setStatusFilter] = React.useState(initialStatusFilter);
+
+  React.useEffect(() => {
+    if (initialSubTab) {
+      setSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
+
+  React.useEffect(() => {
+    if (initialSearchQuery !== undefined) {
+      setSearchQuery(initialSearchQuery);
+    }
+  }, [initialSearchQuery]);
+
+  React.useEffect(() => {
+    if (initialStatusFilter !== undefined) {
+      setStatusFilter(initialStatusFilter);
+    }
+  }, [initialStatusFilter]);
+
   const [progresBlokFilter, setProgresBlokFilter] = React.useState('all');
   const [progresKategoriFilter, setProgresKategoriFilter] = React.useState('all');
+  const [opnameKategoriFilter, setOpnameKategoriFilter] = React.useState('all');
+  const [pembayaranDateFilter, setPembayaranDateFilter] = React.useState('');
   const [editingProgresId, setEditingProgresId] = React.useState<string | null>(null);
 
   // Helper: Format rupiah currency
@@ -111,7 +140,17 @@ export default function ConstructionView({
       const matchSearch = k.id.toLowerCase().includes(searchQuery.toLowerCase()) || 
         k.projectName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         k.type.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchStatus = statusFilter === 'all' || k.statusPembangunan === statusFilter || k.statusPenjualan === statusFilter;
+      
+      let matchStatus = true;
+      if (statusFilter !== 'all') {
+        if (statusFilter === 'readyStock') {
+          matchStatus = k.statusPenjualan === 'tersedia' && k.statusPembangunan === 'terbangun';
+        } else if (statusFilter === 'backlog') {
+          matchStatus = k.statusPenjualan === 'terbooking' && k.statusPembangunan === 'onProgres';
+        } else {
+          matchStatus = k.statusPembangunan === statusFilter || k.statusPenjualan === statusFilter;
+        }
+      }
       return matchProject && matchSearch && matchStatus;
     });
   }, [konstruksiList, selectedProjectId, searchQuery, statusFilter]);
@@ -173,21 +212,27 @@ export default function ConstructionView({
       const unpaid = Math.max(0, g.totalValue - payments);
       const paidPct = g.totalValue > 0 ? Math.round((payments / g.totalValue) * 100) : 0;
 
+      // Find the matched worker from pekerjaList to get their latest phone/whatsapp info
+      const matchedPekerja = (pekerjaList || []).find(
+        (p) => p.namaTukang.trim().toLowerCase() === g.namaTukang.trim().toLowerCase()
+      );
+      const activeNoHp = matchedPekerja?.noHp || g.noHp;
+
       return {
         id: g.id,
         projectId: g.projectId,
         blokId: g.blokId,
         namaTukang: g.namaTukang,
-        noHp: g.noHp,
+        noHp: activeNoHp,
         kategoriPekerjaan: g.kategoriPekerjaan,
         nilaiTotal: g.totalValue,
         nilaiTerbayar: payments,
         nilaiBelumTerbayar: unpaid,
-        persenTerbayar: Math.min(100, paidPct),
+        persenTerbayar: paidPct,
         tanggalMulaiPekerjaan: g.tanggalMulai
       };
     });
-  }, [progresList, pembayaranList]);
+  }, [progresList, pembayaranList, pekerjaList]);
 
   // Filters based on search
   const filteredOpname = React.useMemo(() => {
@@ -197,9 +242,40 @@ export default function ConstructionView({
       const matchSearch = o.namaTukang.toLowerCase().includes(searchQuery.toLowerCase()) ||
         o.kategoriPekerjaan.toLowerCase().includes(searchQuery.toLowerCase()) ||
         o.blokId.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchProject && matchSearch;
+      const matchKategori = opnameKategoriFilter === 'all' || o.kategoriPekerjaan.toLowerCase() === opnameKategoriFilter.toLowerCase();
+      return matchProject && matchSearch && matchKategori;
     });
-  }, [opnameTukangList, searchQuery, selectedProjectId, konstruksiList]);
+  }, [opnameTukangList, searchQuery, selectedProjectId, konstruksiList, opnameKategoriFilter]);
+
+  const rincianMetrics = React.useMemo(() => {
+    if (!pembayaranList || pembayaranList.length === 0) {
+      return { tanggalTerakhir: '-', totalTerakhir: 0 };
+    }
+    
+    const activePayments = (pembayaranList || []).filter(p => {
+      const associatedBlock = konstruksiList.find(k => k.id === p.namaBlok);
+      return selectedProjectId === 'all' || (associatedBlock && associatedBlock.projectId === selectedProjectId);
+    });
+
+    if (activePayments.length === 0) {
+      return { tanggalTerakhir: '-', totalTerakhir: 0 };
+    }
+
+    const sortedPayments = [...activePayments].sort((a, b) => {
+      return new Date(b.tanggalPembayaran).getTime() - new Date(a.tanggalPembayaran).getTime();
+    });
+
+    const tanggalTerakhir = sortedPayments[0].tanggalPembayaran;
+    
+    const totalTerakhir = activePayments
+      .filter(p => p.tanggalPembayaran === tanggalTerakhir)
+      .reduce((sum, p) => sum + p.nilaiPembayaran, 0);
+
+    return {
+      tanggalTerakhir,
+      totalTerakhir
+    };
+  }, [pembayaranList, selectedProjectId, konstruksiList]);
 
   const filteredRincian = React.useMemo(() => {
     return (pembayaranList || []).filter(p => {
@@ -208,9 +284,10 @@ export default function ConstructionView({
       const matchSearch = p.namaTukang.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.kategoriPekerjaan.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (p.namaBlok || '').toLowerCase().includes(searchQuery.toLowerCase());
-      return matchProject && matchSearch;
+      const matchDate = !pembayaranDateFilter || p.tanggalPembayaran === pembayaranDateFilter;
+      return matchProject && matchSearch && matchDate;
     });
-  }, [pembayaranList, searchQuery, selectedProjectId, konstruksiList]);
+  }, [pembayaranList, searchQuery, selectedProjectId, konstruksiList, pembayaranDateFilter]);
 
   return (
     <div className="space-y-6">
@@ -252,6 +329,7 @@ export default function ConstructionView({
             onClick={() => { 
               setSubTab('opname'); 
               setSearchQuery(''); 
+              setOpnameKategoriFilter('all');
             }}
             className={`flex-1 flex items-center justify-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap ${
               subTab === 'opname'
@@ -266,6 +344,7 @@ export default function ConstructionView({
             onClick={() => { 
               setSubTab('rincian'); 
               setSearchQuery(''); 
+              setPembayaranDateFilter('');
             }}
             className={`flex-1 flex items-center justify-center gap-2 px-3.5 py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap ${
               subTab === 'rincian'
@@ -351,6 +430,8 @@ export default function ConstructionView({
               <option value="tersedia">Penjualan: Tersedia</option>
               <option value="terbooking">Penjualan: Terbooking</option>
               <option value="terjual">Penjualan: Terjual</option>
+              <option value="readyStock">Ready Stock (Tersedia & Terbangun)</option>
+              <option value="backlog">Backlog (Terbooking & On Progres)</option>
             </select>
           </div>
         )}
@@ -384,6 +465,42 @@ export default function ConstructionView({
                 ))}
               </select>
             </div>
+          </div>
+        )}
+
+        {subTab === 'opname' && (
+          <div className="flex items-center gap-2">
+            <Sliders size={16} className="text-slate-400" />
+            <select
+              value={opnameKategoriFilter}
+              onChange={(e) => setOpnameKategoriFilter(e.target.value)}
+              className="text-sm rounded-xl px-3 py-2 bg-white/70 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-slate-700 font-medium capitalize"
+            >
+              <option value="all">Semua Kategori</option>
+              {uniqueKategoriOptions.map((kat) => (
+                <option key={kat} value={kat} className="capitalize">{kat}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {subTab === 'rincian' && (
+          <div className="flex items-center gap-2">
+            <Calendar size={16} className="text-slate-400" />
+            <input
+              type="date"
+              value={pembayaranDateFilter}
+              onChange={(e) => setPembayaranDateFilter(e.target.value)}
+              className="text-sm rounded-xl px-3.5 py-2 bg-white/70 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-slate-700 font-semibold cursor-pointer"
+            />
+            {pembayaranDateFilter && (
+              <button
+                onClick={() => setPembayaranDateFilter('')}
+                className="text-xs font-bold text-slate-500 hover:text-rose-600 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white/70 hover:bg-slate-50 transition-all cursor-pointer"
+              >
+                Reset
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -699,7 +816,7 @@ export default function ConstructionView({
                         <div className="w-20 bg-slate-100 h-1.5 rounded-full overflow-hidden">
                           <div 
                             className="bg-gradient-to-r from-emerald-400 to-emerald-500 h-1.5 rounded-full"
-                            style={{ width: `${opn.persenTerbayar}%` }}
+                            style={{ width: `${Math.min(100, opn.persenTerbayar)}%` }}
                           />
                         </div>
                       </div>
@@ -720,49 +837,86 @@ export default function ConstructionView({
       )}
 
       {subTab === 'rincian' && (
-        <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white/60 shadow-sm">
-          <table className="w-full text-left text-sm border-collapse">
-            <thead>
-              <tr className="bg-slate-50/70 border-b border-slate-100 text-slate-500 text-[11px] uppercase tracking-wider font-display font-medium">
-                <th className="p-4">Nilai Pembayaran</th>
-                <th className="p-4">Pekerja & Kategori</th>
-                <th className="p-4">Blok & Projek</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700 font-sans text-xs">
-              {filteredRincian.map((p) => (
-                <tr key={p.id} className="hover:bg-white/40 transition">
-                  <td className="p-4">
-                    <div className="font-mono font-bold text-emerald-600 text-sm">
-                      {formatRupiah(p.nilaiPembayaran)}
-                    </div>
-                    <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                      Tgl: {p.tanggalPembayaran}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="font-display font-semibold text-slate-950 text-sm">{p.namaTukang}</div>
-                    <div className="mt-1">
-                      <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-slate-100 text-slate-500">
-                        {p.kategoriPekerjaan}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div className="font-semibold text-slate-700">Blok {p.namaBlok || 'A-01'}</div>
-                    <div className="text-[10px] text-slate-400">Projek: {p.namaProjek || 'Permata Hijau Residence'}</div>
-                  </td>
+        <div className="space-y-4">
+          {/* Metrics Panel */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Tanggal Pembayaran Terakhir */}
+            <div className="p-4 rounded-xl border border-slate-100 bg-white/75 backdrop-blur-md flex items-center justify-between shadow-xs">
+              <div>
+                <span className="text-xs font-bold text-indigo-600/90 uppercase tracking-wider block">Tanggal Pembayaran Terakhir</span>
+                <span className="font-mono text-xl font-bold text-slate-800 leading-none block mt-1.5">
+                  {rincianMetrics.tanggalTerakhir}
+                </span>
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  Tanggal transaksi pengeluaran terbaru ke pekerja
+                </span>
+              </div>
+              <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                <Calendar size={18} />
+              </div>
+            </div>
+
+            {/* Total Pembayaran Terakhir */}
+            <div className="p-4 rounded-xl border border-slate-100 bg-white/75 backdrop-blur-md flex items-center justify-between shadow-xs">
+              <div>
+                <span className="text-xs font-bold text-emerald-600/90 uppercase tracking-wider block">Total Pembayaran Terakhir</span>
+                <span className="font-mono text-xl font-bold text-emerald-600 leading-none block mt-1.5">
+                  {formatRupiah(rincianMetrics.totalTerakhir)}
+                </span>
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  Jumlah total dana cair pada pembayaran terbaru ({rincianMetrics.tanggalTerakhir})
+                </span>
+              </div>
+              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                <CreditCard size={18} />
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl border border-slate-100 bg-white/60 shadow-sm">
+            <table className="w-full text-left text-sm border-collapse">
+              <thead>
+                <tr className="bg-slate-50/70 border-b border-slate-100 text-slate-500 text-[11px] uppercase tracking-wider font-display font-medium">
+                  <th className="p-4">Nilai Pembayaran</th>
+                  <th className="p-4">Pekerja & Kategori</th>
+                  <th className="p-4">Blok & Projek</th>
                 </tr>
-              ))}
-              {filteredRincian.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="p-8 text-center text-slate-400 font-sans">
-                    Tidak ada catatan pembayaran yang cocok dengan kriteria pencarian.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-700 font-sans text-xs">
+                {filteredRincian.map((p) => (
+                  <tr key={p.id} className="hover:bg-white/40 transition">
+                    <td className="p-4">
+                      <div className="font-mono font-bold text-emerald-600 text-sm">
+                        {formatRupiah(p.nilaiPembayaran)}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                        Tgl: {p.tanggalPembayaran}
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <div className="font-display font-semibold text-slate-950 text-sm">{p.namaTukang}</div>
+                      <div className="mt-1">
+                        <span className="px-2 py-0.5 rounded text-[10px] uppercase font-bold bg-slate-100 text-slate-500">
+                          {p.kategoriPekerjaan}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <div className="font-semibold text-slate-700">Blok {p.namaBlok || 'A-01'}</div>
+                      <div className="text-[10px] text-slate-400">Projek: {p.namaProjek || 'Permata Hijau Residence'}</div>
+                    </td>
+                  </tr>
+                ))}
+                {filteredRincian.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="p-8 text-center text-slate-400 font-sans">
+                      Tidak ada catatan pembayaran yang cocok dengan kriteria pencarian.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

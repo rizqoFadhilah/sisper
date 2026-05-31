@@ -25,6 +25,8 @@ interface OperasionalViewProps {
   onAddAbsensi: () => void;
   onAddAbsensiPekerja: () => void;
   onAddPekerja?: (pekerja: Omit<Pekerja, 'id'>) => void;
+  initialSubTab?: 'karyawan' | 'absensi' | 'absensi_pekerja' | 'pekerja';
+  initialSearchQuery?: string;
 }
 
 export default function OperasionalView({
@@ -36,10 +38,24 @@ export default function OperasionalView({
   onAddKaryawan,
   onAddAbsensi,
   onAddAbsensiPekerja,
-  onAddPekerja
+  onAddPekerja,
+  initialSubTab = 'absensi',
+  initialSearchQuery = '',
 }: OperasionalViewProps) {
-  const [subTab, setSubTab] = React.useState<'karyawan' | 'absensi' | 'absensi_pekerja' | 'pekerja'>('absensi');
-  const [searchQuery, setSearchQuery] = React.useState('');
+  const [subTab, setSubTab] = React.useState<'karyawan' | 'absensi' | 'absensi_pekerja' | 'pekerja'>(initialSubTab);
+  const [searchQuery, setSearchQuery] = React.useState(initialSearchQuery);
+
+  React.useEffect(() => {
+    if (initialSubTab) {
+      setSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
+
+  React.useEffect(() => {
+    if (initialSearchQuery !== undefined) {
+      setSearchQuery(initialSearchQuery);
+    }
+  }, [initialSearchQuery]);
 
   // Format YYYY-MM into Indo month name, e.g. "2026-05" -> "Mei 2026"
   const formatIndoMonth = React.useCallback((ym: string) => {
