@@ -801,16 +801,11 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-gradient-to-tr from-[#ebf3fc] via-[#e2eefa] to-[#f3f8fd] text-slate-800 font-sans">
-      
-      {/* Decorative Background Blobs for Glassmorphism */}
-      <div className="absolute top-[-100px] right-[-100px] w-[500px] h-[500px] bg-sky-200/40 opacity-50 blur-[130px] rounded-full pointer-events-none"></div>
-      <div className="absolute bottom-[-50px] left-[-50px] w-96 h-96 bg-teal-100/30 opacity-40 blur-[110px] rounded-full pointer-events-none"></div>
-      <div className="absolute top-1/2 left-1/4 w-[400px] h-[400px] bg-indigo-100/40 opacity-30 blur-[120px] rounded-full pointer-events-none"></div>
+    <div className="min-h-screen relative overflow-hidden bg-[#e0e5ec] text-[#3e4a5b] font-sans">
       
       {/* Dynamic Toast Feedback Notification */}
       {toastMessage && (
-        <div className="fixed top-5 right-5 z-[100] flex items-center gap-3.5 p-4 rounded-2xl glass-panel text-slate-800 border-l-4 border-l-emerald-500 shadow-xl max-w-sm animate-scale-up">
+        <div className="fixed top-5 right-5 z-[100] flex items-center gap-3.5 p-4 rounded-2xl bg-[#e0e5ec] shadow-[9px_9px_16px_rgba(163,177,198,0.55),-9px_-9px_16px_rgba(255,255,255,0.85)] border-l-4 border-l-emerald-500 max-w-sm animate-scale-up">
           <CheckCircle2 className="text-emerald-500 shrink-0" size={20} />
           <div className="text-xs font-semibold">{toastMessage}</div>
         </div>
@@ -819,17 +814,17 @@ export default function App() {
       {/* Main Structural Boundary */}
       <div className="flex min-h-screen">
 
-        {/* 1. LEFT SIDEBAR - Desktop Glassmorphic rail */}
-        <aside className="hidden lg:flex flex-col w-72 glass-panel m-4 mr-0 rounded-3xl overflow-hidden p-6 gap-8 shrink-0">
+        {/* 1. LEFT SIDEBAR - Desktop Neumorphic rail */}
+        <aside className="hidden lg:flex flex-col w-72 bg-[#e0e5ec] shadow-[9px_9px_16px_rgba(163,177,198,0.55),-9px_-9px_16px_rgba(255,255,255,0.85)] m-4 mr-0 rounded-[28px] overflow-hidden p-6 gap-8 shrink-0">
           
           {/* Logo Brand Brand */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-lg shadow-indigo-200">
+              <div className="p-3 rounded-xl bg-[#e0e5ec] text-indigo-600 shadow-[4px_4px_8px_rgba(163,177,198,0.5),-4px_-4px_8px_rgba(255,255,255,0.85)] flex items-center justify-center">
                 <Building size={22} />
               </div>
               <div>
-                <h1 className="text-lg font-display font-black text-slate-900 tracking-tight leading-none mb-0.5">SISPER<span className="text-indigo-600">.</span></h1>
+                <h1 className="text-lg font-display font-black text-[#2d3748] tracking-tight leading-none mb-0.5">SISPER<span className="text-indigo-600">.</span></h1>
                 <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest font-sans">Perumahan Sektor Utama</p>
               </div>
             </div>
@@ -838,16 +833,16 @@ export default function App() {
           </div>
 
           {/* Navigation group */}
-          <div className="flex-1 flex flex-col gap-2">
+          <div className="flex-1 flex flex-col gap-3">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 px-2">Kategori Menu</span>
             
             {isTabAllowed('dashboard') && (
               <button
                 onClick={() => navigateToTab('dashboard')}
-                className={`w-full justify-start text-left flex items-center gap-3.5 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl transition ${
+                className={`w-full justify-start text-left flex items-center gap-3.5 px-4 py-3.5 text-xs sm:text-sm font-bold rounded-2xl transition-all duration-150 cursor-pointer ${
                   activeTab === 'dashboard'
-                    ? 'bg-indigo-500/10 text-indigo-700 shadow-sm border border-indigo-500/10'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                    ? 'shadow-[inset_3px_3px_6px_rgba(163,177,198,0.55),inset_-3px_-3px_6px_rgba(255,255,255,0.85)] text-indigo-600'
+                    : 'text-slate-600 hover:shadow-[3px_3px_6px_rgba(163,177,198,0.35),-3px_-3px_6px_rgba(255,255,255,0.7)] hover:text-slate-800'
                 }`}
               >
                 <BarChart3 size={18} className="text-indigo-500" />
@@ -858,10 +853,10 @@ export default function App() {
             {isTabAllowed('konstruksi') && (
               <button
                 onClick={() => navigateToTab('konstruksi')}
-                className={`w-full justify-start text-left flex items-center gap-3.5 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl transition ${
+                className={`w-full justify-start text-left flex items-center gap-3.5 px-4 py-3.5 text-xs sm:text-sm font-bold rounded-2xl transition-all duration-150 cursor-pointer ${
                   activeTab === 'konstruksi'
-                    ? 'bg-blue-500/10 text-blue-700 border border-blue-500/10'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                    ? 'shadow-[inset_3px_3px_6px_rgba(163,177,198,0.55),inset_-3px_-3px_6px_rgba(255,255,255,0.85)] text-blue-600'
+                    : 'text-slate-600 hover:shadow-[3px_3px_6px_rgba(163,177,198,0.35),-3px_-3px_6px_rgba(255,255,255,0.7)] hover:text-slate-800'
                 }`}
               >
                 <Building size={18} className="text-blue-500" />
@@ -872,10 +867,10 @@ export default function App() {
             {isTabAllowed('logistik') && (
               <button
                 onClick={() => navigateToTab('logistik')}
-                className={`w-full justify-start text-left flex items-center gap-3.5 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl transition ${
+                className={`w-full justify-start text-left flex items-center gap-3.5 px-4 py-3.5 text-xs sm:text-sm font-bold rounded-2xl transition-all duration-150 cursor-pointer ${
                   activeTab === 'logistik'
-                    ? 'bg-emerald-500/10 text-emerald-700 border border-emerald-500/10'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                    ? 'shadow-[inset_3px_3px_6px_rgba(163,177,198,0.55),inset_-3px_-3px_6px_rgba(255,255,255,0.85)] text-[#10b981]'
+                    : 'text-slate-600 hover:shadow-[3px_3px_6px_rgba(163,177,198,0.35),-3px_-3px_6px_rgba(255,255,255,0.7)] hover:text-slate-800'
                 }`}
               >
                 <Warehouse size={18} className="text-emerald-500" />
@@ -886,10 +881,10 @@ export default function App() {
             {isTabAllowed('marketing') && (
               <button
                 onClick={() => navigateToTab('marketing')}
-                className={`w-full justify-start text-left flex items-center gap-3.5 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl transition ${
+                className={`w-full justify-start text-left flex items-center gap-3.5 px-4 py-3.5 text-xs sm:text-sm font-bold rounded-2xl transition-all duration-150 cursor-pointer ${
                   activeTab === 'marketing'
-                    ? 'bg-orange-500/10 text-orange-700 border border-orange-500/10'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                    ? 'shadow-[inset_3px_3px_6px_rgba(163,177,198,0.55),inset_-3px_-3px_6px_rgba(255,255,255,0.85)] text-orange-600'
+                    : 'text-slate-600 hover:shadow-[3px_3px_6px_rgba(163,177,198,0.35),-3px_-3px_6px_rgba(255,255,255,0.7)] hover:text-slate-800'
                 }`}
               >
                 <TrendingUp size={18} className="text-orange-500" />
@@ -900,27 +895,27 @@ export default function App() {
             {isTabAllowed('operasional') && (
               <button
                 onClick={() => navigateToTab('operasional')}
-                className={`w-full justify-start text-left flex items-center gap-3.5 px-3 py-3 text-xs sm:text-sm font-bold rounded-xl transition ${
+                className={`w-full justify-start text-left flex items-center gap-3.5 px-4 py-3.5 text-xs sm:text-sm font-bold rounded-2xl transition-all duration-150 cursor-pointer ${
                   activeTab === 'operasional'
-                    ? 'bg-rose-500/10 text-rose-700 border border-rose-500/10'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                    ? 'shadow-[inset_3px_3px_6px_rgba(163,177,198,0.55),inset_-3px_-3px_6px_rgba(255,255,255,0.85)] text-rose-600'
+                    : 'text-slate-600 hover:shadow-[3px_3px_6px_rgba(163,177,198,0.35),-3px_-3px_6px_rgba(255,255,255,0.7)] hover:text-slate-800'
                 }`}
               >
                 <Users size={18} className="text-rose-500" />
-                Data karyawan dan pekerja
+                Data karyawan & pekerja
               </button>
             )}
           </div>
 
            {/* User profile segment */}
-          <div className="p-4 rounded-2xl bg-white/30 backdrop-blur-md border border-white/20 flex flex-col gap-2.5">
+          <div className="p-4 rounded-2xl bg-[#e0e5ec] shadow-[inset_4px_4px_8px_rgba(163,177,198,0.55),inset_-4px_-4px_8px_rgba(255,255,255,0.85)] flex flex-col gap-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-indigo-500 text-white font-bold flex items-center justify-center text-xs shrink-0">
+              <div className="w-9 h-9 rounded-full bg-[#e0e5ec] shadow-[3px_3px_6px_rgba(163,177,198,0.45),-3px_-3px_6px_rgba(255,255,255,0.85)] text-indigo-600 font-bold flex items-center justify-center text-xs shrink-0 border border-white/20">
                 {currentUser?.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
-                <h4 className="text-xs font-bold text-slate-800 truncate">{currentUser?.name}</h4>
-                <p className="text-[9px] text-indigo-500 font-bold uppercase tracking-wider truncate">{currentUser?.roleLabel}</p>
+                <h4 className="text-xs font-bold text-[#2d3748] truncate">{currentUser?.name}</h4>
+                <p className="text-[9px] text-indigo-600 font-bold uppercase tracking-wider truncate">{currentUser?.roleLabel}</p>
               </div>
             </div>
             
@@ -929,13 +924,13 @@ export default function App() {
                 setCurrentUser(null);
                 setActiveTab('dashboard');
               }}
-              className="mt-0.5 flex items-center justify-center gap-1.5 w-full py-2 bg-rose-550/10 hover:bg-rose-500/10 text-rose-600 hover:text-rose-700 transition duration-150 rounded-xl text-xs font-bold border border-rose-200/50 cursor-pointer"
+              className="mt-0.5 flex items-center justify-center gap-1.5 w-full py-2 bg-[#e0e5ec] text-rose-600 shadow-[3px_3px_6px_rgba(163,177,198,0.5),-3px_-3px_6px_rgba(255,255,255,0.85)] hover:shadow-[1px_1px_3px_rgba(163,177,198,0.5),-1px_-1px_3px_rgba(255,255,255,0.95)] active:shadow-[inset_2px_2px_4px_rgba(163,177,198,0.6)] hover:text-rose-700 transition duration-150 rounded-xl text-xs font-bold cursor-pointer"
             >
               <LogOut size={13} />
               <span>Logout</span>
             </button>
 
-            <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-mono mt-1 pt-2 border-t border-slate-100">
+            <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-mono mt-1 pt-2 border-t border-slate-300/30">
               <Clock size={11} className="text-indigo-400 animate-pulse" />
               <span>{currentTime || 'Syncing...'}</span>
             </div>
@@ -946,17 +941,17 @@ export default function App() {
         <main className="flex-1 flex flex-col p-4 md:p-6 overflow-y-auto max-w-full lg:max-w-[calc(100%-18rem)]">
           
           {/* Header Mobile Toolbar / Brand bar */}
-          <header className="flex lg:hidden items-center justify-between mb-5 p-3 rounded-2xl bg-white/60 backdrop-blur-lg border border-white/40">
+          <header className="flex lg:hidden items-center justify-between mb-5 p-4 rounded-2xl bg-[#e0e5ec] shadow-[5px_5px_10px_rgba(163,177,198,0.5),-5px_-5px_10px_rgba(255,255,255,0.85)]">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-100">
+              <div className="p-2.5 rounded-xl bg-[#e0e5ec] text-indigo-600 shadow-[3px_3px_6px_rgba(163,177,198,0.45),-3px_-3px_6px_rgba(255,255,255,0.85)] flex items-center justify-center">
                 <Building size={16} />
               </div>
-              <h1 className="text-md font-display font-black text-slate-800">SISPER<span className="text-indigo-600">.</span></h1>
+              <h1 className="text-md font-display font-black text-[#2d3748]">SISPER<span className="text-indigo-600">.</span></h1>
             </div>
             
             <button 
               onClick={() => setIsMobileMenuOpen(true)}
-              className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700"
+              className="p-2.5 bg-[#e0e5ec] shadow-[3px_3px_6px_rgba(163,177,198,0.45),-3px_-3px_6px_rgba(255,255,255,0.85)] active:shadow-[inset_2px_2px_4px_rgba(163,177,198,0.6)] rounded-xl text-slate-700 cursor-pointer"
             >
               <Menu size={18} />
             </button>

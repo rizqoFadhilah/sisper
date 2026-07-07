@@ -48,8 +48,8 @@ function DonutChartWidget({ value, title, subtitle, strokeColor, icon, onClick }
   return (
     <div 
       onClick={onClick} 
-      className={`glass-card p-3 xs:p-5 rounded-2xl flex flex-col items-center justify-between text-center min-h-[180px] xs:min-h-[220px] hover:scale-[1.01] transition-all duration-300 ${
-        onClick ? 'cursor-pointer hover:border-slate-300 hover:shadow-md active:scale-95' : ''
+      className={`bg-[#e0e5ec] shadow-[6px_6px_12px_rgba(163,177,198,0.5),-6px_-6px_12px_rgba(255,255,255,0.85)] p-3 xs:p-5 rounded-2xl flex flex-col items-center justify-between text-center min-h-[180px] xs:min-h-[220px] transition-all duration-300 ${
+        onClick ? 'cursor-pointer hover:shadow-[3px_3px_6px_rgba(163,177,198,0.5),-3px_-3px_6px_rgba(255,255,255,0.9)] active:shadow-[inset_3px_3px_6px_rgba(163,177,198,0.6)]' : ''
       }`}
     >
       <div className="w-full flex justify-between items-center mb-1">
@@ -60,11 +60,11 @@ function DonutChartWidget({ value, title, subtitle, strokeColor, icon, onClick }
       </div>
       
       {/* SVG Donut */}
-      <div className="relative flex items-center justify-center my-3">
+      <div className="relative flex items-center justify-center my-3 p-2 rounded-full shadow-[inset_3px_3px_6px_rgba(163,177,198,0.5),inset_-3px_-3px_6px_rgba(255,255,255,0.85)]">
         <svg height={90} width={90} className="transform -rotate-90">
           {/* Background circle */}
           <circle
-            stroke="#f1f5f9"
+            stroke="#d1d9e6"
             fill="transparent"
             strokeWidth={strokeWidth}
             r={normalizedRadius}
@@ -85,7 +85,7 @@ function DonutChartWidget({ value, title, subtitle, strokeColor, icon, onClick }
         </svg>
         {/* Absolute center label */}
         <div className="absolute flex flex-col items-center justify-center">
-          <span className="text-lg font-black font-display text-slate-800 leading-none">{value}%</span>
+          <span className="text-lg font-black font-display text-[#2d3748] leading-none">{value}%</span>
         </div>
       </div>
 
@@ -272,16 +272,25 @@ export default function DashboardView({
   return (
     <div className="space-y-6">
       {/* Filters and Welcoming Info */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-2xl bg-white/50 backdrop-blur-md border border-white/40">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-3xl bg-[#e0e5ec] shadow-[9px_9px_16px_rgba(163,177,198,0.55),-9px_-9px_16px_rgba(255,255,255,0.85)]">
        
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-2xl bg-[#e0e5ec] text-indigo-600 shadow-[inset_3px_3px_6px_rgba(163,177,198,0.5),inset_-3px_-3px_6px_rgba(255,255,255,0.85)]">
+            <Building2 size={20} />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-[#2d3748] tracking-tight">Overview Real-Time</h3>
+            <p className="text-[10px] text-slate-500">Pilih projek perumahan untuk memfilter seluruh data operasional</p>
+          </div>
+        </div>
         
-        {/* Project Selector - Glassmorphic */}
+        {/* Project Selector - Neumorphic Inset */}
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Filter Projek:</span>
           <select
             value={selectedProjectId}
             onChange={(e) => setSelectedProjectId(e.target.value)}
-            className="text-sm font-semibold text-indigo-600 bg-white/70 border border-slate-200 rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="text-sm font-semibold text-indigo-600 bg-[#e0e5ec] shadow-[inset_3px_3px_6px_rgba(163,177,198,0.55),inset_-3px_-3px_6px_rgba(255,255,255,0.85)] border-none rounded-2xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer"
           >
             <option value="all">Semua Projek Perumahan</option>
             {projects.map((p) => (
@@ -296,32 +305,32 @@ export default function DashboardView({
       {/* Grid statistics - Bento layouts with Badges and Donut Charts */}
       <div className="space-y-8">
         
-        {/* SECTION A: DISTRIBUSI KAPLING & STATISTIK UNIT (Badge Style cards) */}
+        {/* SECTION A: DISTRIBUSI KAPLING & STATISTIK UNIT */}
         <div className="space-y-3">
           <div className="flex items-center gap-2 px-1">
             <span className="w-1.5 h-4 bg-indigo-600 rounded-full"></span>
             <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Distribusi Kapling & Progres Lapangan</h3>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             
             {/* 1. Total Kapling Unit Badge Card */}
             <div 
               onClick={() => onNavigate?.('konstruksi')}
-              className="glass-card p-3 xs:p-4 sm:p-5 rounded-2xl flex flex-col justify-between cursor-pointer hover:scale-[1.01] hover:border-cyan-400 hover:shadow-lg active:scale-95 transition-all duration-300"
+              className="bg-[#e0e5ec] shadow-[6px_6px_12px_rgba(163,177,198,0.5),-6px_-6px_12px_rgba(255,255,255,0.85)] p-4 sm:p-5 rounded-3xl flex flex-col justify-between cursor-pointer transition-all duration-300 hover:shadow-[3px_3px_6px_rgba(163,177,198,0.55),-3px_-3px_6px_rgba(255,255,255,0.9)] active:shadow-[inset_4px_4px_8px_rgba(163,177,198,0.65)]"
             >
               <div className="flex justify-between items-start mb-3">
-                <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-600 shadow-sm">
+                <div className="p-3 rounded-2xl bg-[#e0e5ec] text-cyan-600 shadow-[inset_2px_2px_4px_rgba(163,177,198,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.85)]">
                   <Home size={18} />
                 </div>
-                <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 bg-cyan-600 text-white rounded-full shadow-sm">
+                <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 bg-[#e0e5ec] text-cyan-600 shadow-[2px_2px_4px_rgba(163,177,198,0.35),-2px_-2px_4px_rgba(255,255,255,0.85)] rounded-full leading-none">
                   Total Kapling
                 </span>
               </div>
               <div className="mt-2">
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Unit Terdaftar</p>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-3xl font-black font-display text-slate-800">{totalUnits}</span>
-                  <span className="text-xs font-semibold text-cyan-600">Terdaftar</span>
+                  <span className="text-3xl font-black font-display text-[#2d3748]">{totalUnits}</span>
+                  <span className="text-xs font-semibold text-cyan-600">Unit</span>
                 </div>
               </div>
             </div>
@@ -329,20 +338,20 @@ export default function DashboardView({
             {/* 2. On Progres Pembangunan Badge Card */}
             <div 
               onClick={() => onNavigate?.('konstruksi', { subTab: 'blok', statusFilter: 'onProgres' })}
-              className="glass-card p-3 xs:p-4 sm:p-5 rounded-2xl flex flex-col justify-between cursor-pointer hover:scale-[1.01] hover:border-violet-400 hover:shadow-lg active:scale-95 transition-all duration-300"
+              className="bg-[#e0e5ec] shadow-[6px_6px_12px_rgba(163,177,198,0.5),-6px_-6px_12px_rgba(255,255,255,0.85)] p-4 sm:p-5 rounded-3xl flex flex-col justify-between cursor-pointer transition-all duration-300 hover:shadow-[3px_3px_6px_rgba(163,177,198,0.55),-3px_-3px_6px_rgba(255,255,255,0.9)] active:shadow-[inset_4px_4px_8px_rgba(163,177,198,0.65)]"
             >
               <div className="flex justify-between items-start mb-3">
-                <div className="p-2 rounded-xl bg-violet-500/10 text-violet-600 shadow-sm">
+                <div className="p-3 rounded-2xl bg-[#e0e5ec] text-violet-600 shadow-[inset_2px_2px_4px_rgba(163,177,198,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.85)]">
                   <Activity size={18} />
                 </div>
-                <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 bg-violet-600 text-white rounded-full shadow-sm">
+                <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 bg-[#e0e5ec] text-violet-600 shadow-[2px_2px_4px_rgba(163,177,198,0.35),-2px_-2px_4px_rgba(255,255,255,0.85)] rounded-full leading-none">
                   In Progress
                 </span>
               </div>
               <div className="mt-2">
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Konstruksi Berjalan</p>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-3xl font-black font-display text-slate-800">
+                  <span className="text-3xl font-black font-display text-[#2d3748]">
                     {filteredKonstruksi.filter(k => k.statusPembangunan === 'onProgres').length}
                   </span>
                   <span className="text-sm font-semibold text-violet-600">Unit</span>
@@ -353,20 +362,20 @@ export default function DashboardView({
             {/* 3. Terbangun Belum Booking Badge Card */}
             <div 
               onClick={() => onNavigate?.('konstruksi', { subTab: 'blok', statusFilter: 'readyStock' })}
-              className="glass-card p-3 xs:p-4 sm:p-5 rounded-2xl flex flex-col justify-between cursor-pointer hover:scale-[1.01] hover:border-orange-400 hover:shadow-lg active:scale-95 transition-all duration-300"
+              className="bg-[#e0e5ec] shadow-[6px_6px_12px_rgba(163,177,198,0.5),-6px_-6px_12px_rgba(255,255,255,0.85)] p-4 sm:p-5 rounded-3xl flex flex-col justify-between cursor-pointer transition-all duration-300 hover:shadow-[3px_3px_6px_rgba(163,177,198,0.55),-3px_-3px_6px_rgba(255,255,255,0.9)] active:shadow-[inset_4px_4px_8px_rgba(163,177,198,0.65)]"
             >
               <div className="flex justify-between items-start mb-3">
-                <div className="p-2 rounded-xl bg-orange-500/10 text-orange-600 shadow-sm">
+                <div className="p-3 rounded-2xl bg-[#e0e5ec] text-orange-600 shadow-[inset_2px_2px_4px_rgba(163,177,198,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.85)]">
                   <AlertTriangle size={18} />
                 </div>
-                <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 bg-orange-500 text-white rounded-full shadow-sm">
+                <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 bg-[#e0e5ec] text-orange-600 shadow-[2px_2px_4px_rgba(163,177,198,0.35),-2px_-2px_4px_rgba(255,255,255,0.85)] rounded-full leading-none">
                   Ready Stock
                 </span>
               </div>
               <div className="mt-2">
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Terbangun Belum Booking</p>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-3xl font-black font-display text-slate-800">
+                  <span className="text-3xl font-black font-display text-[#2d3748]">
                     {filteredKonstruksi.filter(k => k.statusPembangunan === 'terbangun' && k.statusPenjualan === 'tersedia').length}
                   </span>
                   <span className="text-sm font-semibold text-orange-600">Unit</span>
@@ -377,20 +386,20 @@ export default function DashboardView({
             {/* 4. Terbooking Belum Terbangun Badge Card */}
             <div 
               onClick={() => onNavigate?.('konstruksi', { subTab: 'blok', statusFilter: 'backlog' })}
-              className="glass-card p-3 xs:p-4 sm:p-5 rounded-2xl flex flex-col justify-between cursor-pointer hover:scale-[1.01] hover:border-fuchsia-400 hover:shadow-lg active:scale-95 transition-all duration-300"
+              className="bg-[#e0e5ec] shadow-[6px_6px_12px_rgba(163,177,198,0.5),-6px_-6px_12px_rgba(255,255,255,0.85)] p-4 sm:p-5 rounded-3xl flex flex-col justify-between cursor-pointer transition-all duration-300 hover:shadow-[3px_3px_6px_rgba(163,177,198,0.55),-3px_-3px_6px_rgba(255,255,255,0.9)] active:shadow-[inset_4px_4px_8px_rgba(163,177,198,0.65)]"
             >
               <div className="flex justify-between items-start mb-3">
-                <div className="p-2 rounded-xl bg-fuchsia-500/10 text-fuchsia-600 shadow-sm">
+                <div className="p-3 rounded-2xl bg-[#e0e5ec] text-fuchsia-600 shadow-[inset_2px_2px_4px_rgba(163,177,198,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.85)]">
                   <TrendingUp size={18} />
                 </div>
-                <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 bg-fuchsia-500 text-white rounded-full shadow-sm">
+                <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 bg-[#e0e5ec] text-fuchsia-600 shadow-[2px_2px_4px_rgba(163,177,198,0.35),-2px_-2px_4px_rgba(255,255,255,0.85)] rounded-full leading-none">
                   Backlog Unit
                 </span>
               </div>
               <div className="mt-2">
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Terbooking Belum Bangun</p>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-3xl font-black font-display text-slate-800">
+                  <span className="text-3xl font-black font-display text-[#2d3748]">
                     {filteredKonstruksi.filter(k => k.statusPenjualan === 'terbooking' && k.statusPembangunan === 'onProgres').length}
                   </span>
                   <span className="text-sm font-semibold text-fuchsia-600">Unit</span>
@@ -474,42 +483,42 @@ export default function DashboardView({
         
 
       {/* 10. Progres bar pembangunan rumah (Individual Block Progress List) */}
-      <div className="p-6 rounded-2xl bg-white/50 backdrop-blur-md border border-white/40 space-y-4">
+      <div className="p-6 rounded-3xl bg-[#e0e5ec] shadow-[9px_9px_16px_rgba(163,177,198,0.55),-9px_-9px_16px_rgba(255, 255, 255, 0.85)] space-y-4">
         <div>
-          <h3 className="text-md font-display font-bold text-slate-800 flex items-center gap-2">
+          <h3 className="text-md font-display font-bold text-[#2d3748] flex items-center gap-2">
             <Building2 className="text-indigo-500" size={18} />
             Progres Konstruksi Detail Blok Rumah
           </h3>
           <p className="text-xs text-slate-500">Status rata-rata penyelesaian blok rumah berdasarkan progres pekerjaan detail</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {homeProgressList.map((home) => (
             <div 
               key={home.id} 
               onClick={() => onNavigate?.('konstruksi', { subTab: 'progres', search: home.id })}
-              className="p-4 rounded-xl border border-slate-100 bg-white/70 hover:border-indigo-200 cursor-pointer hover:shadow-md transition active:scale-98 group"
+              className="p-5 rounded-2xl bg-[#e0e5ec] shadow-[5px_5px_10px_rgba(163,177,198,0.5),-5px_-5px_10px_rgba(255,255,255,0.85)] hover:shadow-[3px_3px_6px_rgba(163,177,198,0.55),-3px_-3px_6px_rgba(255,255,255,0.9)] active:shadow-[inset_3px_3px_6px_rgba(163,177,198,0.6)] cursor-pointer transition-all duration-150 group"
             >
               <div className="flex justify-between items-start mb-2">
                 <div>
-                  <h5 className="font-display font-bold text-slate-800 text-sm group-hover:text-indigo-600 transition">Blok {home.id}</h5>
+                  <h5 className="font-display font-bold text-[#2d3748] text-sm group-hover:text-indigo-600 transition">Blok {home.id}</h5>
                   <p className="text-[11px] text-slate-400">{home.projectName}</p>
                 </div>
                 {/* Badges */}
                 <div className="flex flex-col items-end gap-1">
-                  <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${
+                  <span className={`text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full ${
                     home.statusPembangunan === 'terbangun' 
-                      ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' 
-                      : 'bg-amber-500/10 text-amber-600 border border-amber-500/20'
+                      ? 'bg-[#e0e5ec] text-emerald-600 shadow-[2px_2px_4px_rgba(16,185,129,0.2),-2px_-2px_4px_rgba(255,255,255,0.9)] border border-emerald-500/10' 
+                      : 'bg-[#e0e5ec] text-amber-600 shadow-[2px_2px_4px_rgba(245,158,11,0.2),-2px_-2px_4px_rgba(255,255,255,0.9)] border border-amber-500/10'
                   }`}>
                     {home.statusPembangunan}
                   </span>
                   <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-md ${
                     home.statusPenjualan === 'tersedia' 
-                      ? 'bg-cyan-500/10 text-cyan-600 border border-cyan-400/20'
+                      ? 'bg-[#e0e5ec] text-cyan-600 shadow-[1px_1px_2px_rgba(6,182,212,0.15),-1px_-1px_2px_rgba(255,255,255,0.9)]'
                       : home.statusPenjualan === 'terbooking'
-                      ? 'bg-fuchsia-500/10 text-fuchsia-600 border border-fuchsia-400/20'
-                      : 'bg-purple-500/10 text-purple-600 border border-purple-400/20'
+                      ? 'bg-[#e0e5ec] text-fuchsia-600 shadow-[1px_1px_2px_rgba(217,70,239,0.15),-1px_-1px_2px_rgba(255,255,255,0.9)]'
+                      : 'bg-[#e0e5ec] text-purple-600 shadow-[1px_1px_2px_rgba(168,85,247,0.15),-1px_-1px_2px_rgba(255,255,255,0.9)]'
                   }`}>
                     {home.statusPenjualan}
                   </span>
@@ -517,8 +526,8 @@ export default function DashboardView({
               </div>
 
               {/* Progress & Cost representation */}
-              <div className="mt-3.5 space-y-2">
-                <div className="flex justify-between items-center text-[11px] text-slate-500 border-t border-slate-100/60 pt-2">
+              <div className="mt-4 space-y-3">
+                <div className="flex justify-between items-center text-[11px] text-slate-500 border-t border-slate-300/30 pt-2.5">
                   <span>Biaya Bangun</span>
                   <span className="font-semibold text-indigo-600 font-mono text-xs">{formatRupiah(home.totalBiayaBangun)}</span>
                 </div>
@@ -527,9 +536,9 @@ export default function DashboardView({
                     <span>Penyelesaian Fisik</span>
                     <span className="text-indigo-600">{home.avgProgress}%</span>
                   </div>
-                  <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                  <div className="w-full bg-[#e0e5ec] h-3.5 rounded-full p-0.5 shadow-[inset_2px_2px_4px_rgba(163,177,198,0.5),inset_-2px_-2px_4px_rgba(255,255,255,0.85)]">
                     <div 
-                      className={`h-2 rounded-full transition-all duration-300 ${
+                      className={`h-2.5 rounded-full transition-all duration-300 ${
                         home.avgProgress === 100 
                           ? 'bg-gradient-to-r from-emerald-500 to-teal-500' 
                           : 'bg-gradient-to-r from-indigo-500 to-cyan-500'
